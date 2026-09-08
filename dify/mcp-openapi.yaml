@@ -1,0 +1,138 @@
+openapi: 3.0.0
+info:
+  title: Zhiyun MCP
+  description: 智云客服只读工具。额度、订单、任务、引用结果由 Java 查询，模型不直连数据库。
+  version: "1.0.0"
+servers:
+  - url: https://REPLACE_WITH_PUBLIC_HOST
+paths:
+  /api/mcp/usage_query:
+    post:
+      operationId: usage_query
+      summary: 查询当前登录用户的审校额度余额
+      description: 只返回账户余额，不是套餐标价。必须带 userToken。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userToken]
+              properties:
+                userToken:
+                  type: string
+                  description: 智云登录 JWT
+      responses:
+        "200":
+          description: 余额
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/mcp/order_query:
+    post:
+      operationId: order_query
+      summary: 查询当前用户订单
+      description: 结构化过滤（from/to/status/limit）。Java 参数化拼 WHERE，模型不得写 SQL。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userToken]
+              properties:
+                userToken:
+                  type: string
+                orderId:
+                  type: string
+                  description: 可选。指定则返回单笔
+                from:
+                  type: string
+                  description: Asia/Shanghai 日历日，例如 2026-09-07
+                to:
+                  type: string
+                  description: Asia/Shanghai 日历日，例如 2026-09-08
+                status:
+                  type: string
+                  description: 仅 PAID / PENDING
+                limit:
+                  type: integer
+                  description: 1-50，有日期时默认 50
+      responses:
+        "200":
+          description: 订单
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/mcp/task_status:
+    post:
+      operationId: task_status
+      summary: 查询审校任务进度
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userToken, taskId]
+              properties:
+                userToken:
+                  type: string
+                taskId:
+                  type: number
+      responses:
+        "200":
+          description: 任务状态
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/mcp/citation_result:
+    post:
+      operationId: citation_result
+      summary: 查询引用核验结果摘要
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userToken, taskId]
+              properties:
+                userToken:
+                  type: string
+                taskId:
+                  type: number
+      responses:
+        "200":
+          description: 核验摘要
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/mcp/knowledge_retrieval:
+    post:
+      operationId: knowledge_retrieval
+      summary: 检索投稿规范与平台 FAQ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userToken, query]
+              properties:
+                userToken:
+                  type: string
+                query:
+                  type: string
+                  description: 用户问题
+      responses:
+        "200":
+          description: 知识片段
+          content:
+            application/json:
+              schema:
+                type: object

@@ -1,0 +1,50 @@
+{"id":"R01","scope":"PUBLIC","query":"轻量套餐多少钱到账几点","relevant_files":["00-billing"],"must_contain":["36"]}
+{"id":"R02","scope":"PUBLIC","query":"常用套餐价格和额度","relevant_files":["00-billing"],"must_contain":["130"]}
+{"id":"R03","scope":"PUBLIC","query":"课题组套餐多少钱","relevant_files":["00-billing"],"must_contain":["420"]}
+{"id":"R04","scope":"PUBLIC","query":"实验室套餐到账多少点","relevant_files":["00-billing"],"must_contain":["1500"]}
+{"id":"R05","scope":"PUBLIC","query":"灵活充值最低多少元","relevant_files":["00-billing"],"must_contain":["10"]}
+{"id":"R06","scope":"PUBLIC","query":"1 元等于几点审校额度","relevant_files":["00-billing"],"must_contain":["1 元"]}
+{"id":"R07","scope":"PUBLIC","query":"一次审校怎么扣点 2000 token","relevant_files":["00-billing"],"must_contain":["2000"]}
+{"id":"R08","scope":"PUBLIC","query":"引用核验扣费上限几点","relevant_files":["00-billing"],"must_contain":["3"]}
+{"id":"R09","scope":"PUBLIC","query":"快速审读扣费上限","relevant_files":["00-billing"],"must_contain":["5"]}
+{"id":"R10","scope":"PUBLIC","query":"完整审校最多扣几点","relevant_files":["00-billing"],"must_contain":["10"]}
+{"id":"R11","scope":"PUBLIC","query":"审校失败会不会自动退额度","relevant_files":["00-billing"],"must_contain":["不自动退款"]}
+{"id":"R12","scope":"PUBLIC","query":"客服对话扣不扣审校额度","relevant_files":["00-billing"],"must_contain":["不扣"]}
+{"id":"R13","scope":"PUBLIC","query":"客服能不能帮我改额度","relevant_files":["00-billing"],"must_contain":["不能改额度"]}
+{"id":"R14","scope":"PUBLIC","query":"模拟支付会不会跳转微信支付宝","relevant_files":["00-billing"],"must_contain":["不跳转"]}
+{"id":"R15","scope":"PUBLIC","query":"注册赠送几点体验额度","relevant_files":["00-billing"],"must_contain":["3 点"]}
+{"id":"R16","scope":"PUBLIC","query":"FULL_REVIEW 包含哪些 Agent","relevant_files":["01-platform"],"must_contain":["WAITING_ACCEPT"]}
+{"id":"R17","scope":"PUBLIC","query":"QUICK_REVIEW 跑哪两个节点","relevant_files":["01-platform"],"must_contain":["Citation"]}
+{"id":"R18","scope":"PUBLIC","query":"CITATION_ONLY 会不会改正文","relevant_files":["01-platform"],"must_contain":["Citation Integrity"]}
+{"id":"R19","scope":"PUBLIC","query":"完整审校改完需要我确认吗","relevant_files":["01-platform"],"must_contain":["Accept"]}
+{"id":"R20","scope":"PUBLIC","query":"IEEE PDF eXpress 是什么","relevant_files":["02-ieee"],"must_contain":["PDF eXpress"]}
+{"id":"R21","scope":"PUBLIC","query":"IEEE 会议 LaTeX 文档类 IEEEtran","relevant_files":["02-ieee"],"must_contain":["IEEEtran"]}
+{"id":"R22","scope":"PUBLIC","query":"IEEE 相机就绪必须过 Xplore 检查吗","relevant_files":["02-ieee"],"must_contain":["Xplore"]}
+{"id":"R23","scope":"PUBLIC","query":"ACM TAPS 终稿提交什么系统","relevant_files":["03-acm"],"must_contain":["TAPS"]}
+{"id":"R24","scope":"PUBLIC","query":"ACM 还用不用 2017 旧 Word 模板","relevant_files":["03-acm"],"must_contain":["停用"]}
+{"id":"R25","scope":"PUBLIC","query":"acmart 会议常用 sigconf 选项吗","relevant_files":["03-acm"],"must_contain":["sigconf"]}
+{"id":"R26","scope":"PUBLIC","query":"Nature 初稿能不能交单个 PDF","relevant_files":["04-nature"],"must_contain":["PDF"]}
+{"id":"R27","scope":"PUBLIC","query":"Nature 终稿照片分辨率 300 dpi","relevant_files":["04-nature"],"must_contain":["300 dpi"]}
+{"id":"R28","scope":"PUBLIC","query":"Nature 正刊正文大概多少词","relevant_files":["04-nature"],"must_contain":["2500"]}
+{"id":"R29","scope":"PUBLIC","query":"Elsevier bib 文件要标成 Manuscript 还是 Supplemental","relevant_files":["05-elsevier"],"must_contain":["Manuscript"]}
+{"id":"R30","scope":"PUBLIC","query":"elsarticle 编号参考文献用哪个 bst","relevant_files":["05-elsevier"],"must_contain":["elsarticle-num"]}
+{"id":"R31","scope":"PUBLIC","query":"Elsevier Editorial Manager 能不能把图放子文件夹","relevant_files":["05-elsevier"],"must_contain":["子文件夹"]}
+{"id":"R32","scope":"PUBLIC","query":"ACL 用 A4 还是 Letter","relevant_files":["06-acl"],"must_contain":["A4"]}
+{"id":"R33","scope":"PUBLIC","query":"ACL 终稿 PDF 要不要嵌入字体","relevant_files":["06-acl"],"must_contain":["字体"]}
+{"id":"R34","scope":"PUBLIC","query":"ACL 长文内容页常见几页","relevant_files":["06-acl"],"must_contain":["8"]}
+{"id":"R35","scope":"PUBLIC","query":"NeurIPS 能不能交 Word","relevant_files":["07-neurips"],"must_contain":["Word"]}
+{"id":"R36","scope":"PUBLIC","query":"NeurIPS 2026 主文最多几页","relevant_files":["07-neurips"],"must_contain":["9"]}
+{"id":"R37","scope":"PUBLIC","query":"NeurIPS 是单栏 Letter 还是 A4 双栏","relevant_files":["07-neurips"],"must_contain":["Letter"]}
+{"id":"R38","scope":"PUBLIC","query":"Springer Nature 统一 LaTeX 模板叫什么","relevant_files":["08-springer"],"must_contain":["sn-jnl"]}
+{"id":"R39","scope":"PUBLIC","query":"Springer 提交能不能同时上传自己编译的 PDF 和源文件","relevant_files":["08-springer"],"must_contain":["不要同时"]}
+{"id":"R40","scope":"PUBLIC","query":"线图分辨率是不是要高于照片 300 dpi","relevant_files":["09-figures-pdf"],"must_contain":["600"]}
+{"id":"R41","scope":"PUBLIC","query":"Figure Agent 哪些项用程序检查不用 Vision","relevant_files":["09-figures-pdf"],"must_contain":["程序检查"]}
+{"id":"R42","scope":"PUBLIC","query":"没有 Crossref 命中的 DOI 应标成什么","relevant_files":["10-citation-style"],"must_contain":["NOT_VERIFIED"]}
+{"id":"R43","scope":"PUBLIC","query":"文中出现过某句能不能证明文献存在","relevant_files":["10-citation-style"],"must_contain":["不能证明"]}
+{"id":"R44","scope":"PUBLIC","query":"Style Agent 有没有 AcademicSearch","relevant_files":["10-citation-style","11-academic-writing"],"must_contain":["不授予"]}
+{"id":"R45","scope":"PUBLIC","query":"学术润色能不能改数字和 DOI","relevant_files":["11-academic-writing"],"must_contain":["不得改"]}
+{"id":"R46","scope":"PUBLIC","query":"Firstly In conclusion 是不是 AI 套话","relevant_files":["11-academic-writing"],"must_contain":["Firstly"]}
+{"id":"R47","scope":"PUBLIC","query":"没有消融的 outperforms 是文风问题还是 Evidence Gap","relevant_files":["11-academic-writing"],"must_contain":["Evidence Gap"]}
+{"id":"R48","scope":"PUBLIC","query":"论文是不是都用 A4","relevant_files":["12-word-latex"],"must_contain":["先问"]}
+{"id":"R49","scope":"PUBLIC","query":"NeurIPS Word 停用 ACL 却提供 acl.docx","relevant_files":["12-word-latex"],"must_contain":["NeurIPS"]}
+{"id":"R50","scope":"PUBLIC","query":"去 AI 味不要堆砌破折号和 delve leverage","relevant_files":["13-writing-lab"],"must_contain":["delve"]}

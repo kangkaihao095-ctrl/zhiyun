@@ -1,0 +1,353 @@
+{
+  "protocol": "agent-tasks.jsonl A01-A40 + skills/*.md SOP; coverage = gold hits / items",
+  "model": "qwen3.8-flash",
+  "enable_thinking": false,
+  "startedAt": "2026-09-04T17:59:00+08:00",
+  "finishedAt": "2026-09-04T18:00:48+08:00",
+  "task": {
+    "taskId": 5,
+    "status": "WAITING_ACCEPT",
+    "workflow": "FULL_REVIEW",
+    "sourceVersion": 1,
+    "candidateVersion": 2,
+    "checkpointAgent": "FINAL_VERIFICATION",
+    "errorMessage": null,
+    "live": true,
+    "paperModel": "qwen3.8-flash",
+    "visionModel": "qwen3.8-flash"
+  },
+  "ragRecallAt5": {
+    "suite": "rag",
+    "metric": "Recall@5",
+    "total": 50,
+    "hits": 50,
+    "recallAt5": 100.0,
+    "note": "自建小样本回归，不是线上 SLA",
+    "misses": []
+  },
+  "agentCatalog": {
+    "suite": "agent",
+    "total": 50,
+    "byAgent": {
+      "CITATION_INTEGRITY": 7,
+      "ACADEMIC_STYLE": 6,
+      "ACADEMIC_REVIEWER": 6,
+      "FIGURE_PDF": 6,
+      "REVISION_PLANNING": 5,
+      "REVISION_EXECUTION": 5,
+      "FINAL_VERIFICATION": 5,
+      "CUSTOMER_SERVICE": 6,
+      "WORKFLOW": 3,
+      "HARNESS": 1
+    },
+    "missingPapers": 0,
+    "dir": "/Users/lumengkang/Desktop/简历工程/zhiyun/eval"
+  },
+  "quotaAfterStart": 369,
+  "agents": {
+    "CITATION_INTEGRITY": {
+      "agent": "CITATION_INTEGRITY",
+      "items": [
+        {
+          "id": "A01",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"doi\": \"10.0000/ghost.doi\", ... \"status\": \"NOT_VERIFIED\"",
+          "reason": "产物中幽灵 DOI 被正确标记为 NOT_VERIFIED，且未编造替代 DOI。"
+        },
+        {
+          "id": "A03",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"exists\": true, \"supports_claim\": false",
+          "reason": "VerificationResult 明确区分了存在性 (exists) 和 Claim 支持度 (supports_claim)。"
+        },
+        {
+          "id": "A05",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"notes\": \"Paper exists in Crossref.\"",
+          "reason": "真 DOI 的验证备注指出通过 Crossref 确认存在，符合走外部检索工具的要求。"
+        },
+        {
+          "id": "A06",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"title\": \"Nonexistent study on citation accuracy\", \"authors\": [\"Ghost Author\"]",
+          "reason": "产物仅复现原文中的错误 DOI 并标记为不存在，未生成新的虚假 DOI。"
+        },
+        {
+          "id": "A07",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"status\": \"VERIFIED\", ... \"notes\": \"Paper exists in Crossref.\"",
+          "reason": "VERIFIED 状态均有明确的 Crossref/数据库来源说明，无证据时标记为 NOT_VERIFIED。"
+        },
+        {
+          "id": "A19",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "\"claim_support\": \"NOT_VERIFIED\", ... \"The manuscript uses this fabricated reference as sole evidence for a 12 F1 point gain.\"",
+          "reason": "针对支撑 12 点增益的幽灵 DOI，其 claim_support 被正确标记为 NOT_VERIFIED。"
+        }
+      ],
+      "coveragePct": 100.0,
+      "schemaOk": true,
+      "figureOrTableNote": "",
+      "rawJudgeText": "{\n  \"agent\": \"CITATION_INTEGRITY\",\n  \"items\": [\n    {\n      \"id\": \"A01\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"doi\\\": \\\"10.0000/ghost.doi\\\", ... \\\"status\\\": \\\"NOT_VERIFIED\\\"\",\n      \"reason\": \"产物中幽灵 DOI 被正确标记为 NOT_VERIFIED，且未编造替代 DOI。\"\n    },\n    {\n      \"id\": \"A03\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"exists\\\": true, \\\"supports_claim\\\": false\",\n      \"reason\": \"VerificationResult 明确区分了存在性 (exists) 和 Claim 支持度 (supports_claim)。\"\n    },\n    {\n      \"id\": \"A05\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"notes\\\": \\\"Paper exists in Crossref.\\\"\",\n      \"reason\": \"真 DOI 的验证备注指出通过 Crossref 确认存在，符合走外部检索工具的要求。\"\n    },\n    {\n      \"id\": \"A06\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"title\\\": \\\"Nonexistent study on citation accuracy\\\", \\\"authors\\\": [\\\"Ghost Author\\\"]\",\n      \"reason\": \"产物仅复现原文中的错误 DOI 并标记为不存在，未生成新的虚假 DOI。\"\n    },\n    {\n      \"id\": \"A07\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"status\\\": \\\"VERIFIED\\\", ... \\\"notes\\\": \\\"Paper exists in Crossref.\\\"\",\n      \"reason\": \"VERIFIED 状态均有明确的 Crossref/数据库来源说明，无证据时标记为 NOT_VERIFIED。\"\n    },\n    {\n      \"id\": \"A19\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"\\\"claim_support\\\": \\\"NOT_VERIFIED\\\", ... \\\"The manuscript uses this fabricated reference as sole evidence for a 12 F1 point gain.\\\"\",\n      \"reason\": \"针对支撑 12 点增益的幽灵 DOI，其 claim_support 被正确标记为 NOT_VERIFIED。\"\n    }\n  ],\n  \"coveragePct\": 100,\n  \"schemaOk\": true,\n  \"figureOrTableNote\": \"\"\n}",
+      "scoreSource": "llm-judge"
+    },
+    "FIGURE_PDF": {
+      "agent": "FIGURE_PDF",
+      "items": [
+        {
+          "id": "A20",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "PDF metadata indicates page size 612.0x792.0 points, which corresponds to US Letter format... ACL requires A4 paper size",
+          "reason": "产物明确指出了US Letter (612x792)与ACL要求的A4不符，符合检查标准。"
+        },
+        {
+          "id": "A22",
+          "pass": false,
+          "score": 0,
+          "evidenceQuote": "narrative confirms Figure 1 exists as a blurry JPEG screenshot without a caption",
+          "reason": "产物仅引用文本描述确认Figure 1模糊，未体现基于Vision模型的语义判断或印刷不可读性的独立检测，且主要依赖文本线索而非视觉分析结果。"
+        },
+        {
+          "id": "A23",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Missing Caption for Figure 1... The text mentions 'Caption is missing' for Figure 1.",
+          "reason": "产物成功检出Figure 1缺失题注的问题。"
+        },
+        {
+          "id": "A24",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Table 2 is referenced in the text, but the only printed table is Table 1... dangling reference.",
+          "reason": "产物检出了Table 2被引用但未给出的问题。"
+        },
+        {
+          "id": "A25",
+          "pass": false,
+          "score": 0,
+          "evidenceQuote": "While the raw PDF meta shows `figures=0`... narrative confirms Figure 1 exists as a blurry JPEG screenshot",
+          "reason": "产物虽提及JPEG和模糊，但将其归因于文本叙述（narrative），并未针对pipeline图的质量（如非矢量、压缩导致轴标签不可读）进行专门的技术性讨论或评估，不符合“应讨论”的要求。"
+        },
+        {
+          "id": "SOP5",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "[确定性解析] ... category: \"FIGURE_PDF\"",
+          "reason": "所有相关问题的category均正确标记为FIGURE_PDF，且在detail中使用了[确定性解析]前缀来区分判断类型，符合SOP要求。"
+        }
+      ],
+      "coveragePct": 66.7,
+      "schemaOk": true,
+      "figureOrTableNote": "检出了Figure 1缺题注、Table 2悬空引用及页面尺寸错误；但对Figure 1的视觉质量（模糊/非矢量）缺乏独立的Vision语义判断依据，仅复述了文本中的描述。",
+      "rawJudgeText": "{\n  \"agent\": \"FIGURE_PDF\",\n  \"items\": [\n    {\n      \"id\": \"A20\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"PDF metadata indicates page size 612.0x792.0 points, which corresponds to US Letter format... ACL requires A4 paper size\",\n      \"reason\": \"产物明确指出了US Letter (612x792)与ACL要求的A4不符，符合检查标准。\"\n    },\n    {\n      \"id\": \"A22\",\n      \"pass\": false,\n      \"score\": 0,\n      \"evidenceQuote\": \"narrative confirms Figure 1 exists as a blurry JPEG screenshot without a caption\",\n      \"reason\": \"产物仅引用文本描述确认Figure 1模糊，未体现基于Vision模型的语义判断或印刷不可读性的独立检测，且主要依赖文本线索而非视觉分析结果。\"\n    },\n    {\n      \"id\": \"A23\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"Missing Caption for Figure 1... The text mentions 'Caption is missing' for Figure 1.\",\n      \"reason\": \"产物成功检出Figure 1缺失题注的问题。\"\n    },\n    {\n      \"id\": \"A24\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"Table 2 is referenced in the text, but the only printed table is Table 1... dangling reference.\",\n      \"reason\": \"产物检出了Table 2被引用但未给出的问题。\"\n    },\n    {\n      \"id\": \"A25\",\n      \"pass\": false,\n      \"score\": 0,\n      \"evidenceQuote\": \"While the raw PDF meta shows `figures=0`... narrative confirms Figure 1 exists as a blurry JPEG screenshot\",\n      \"reason\": \"产物虽提及JPEG和模糊，但将其归因于文本叙述（narrative），并未针对pipeline图的质量（如非矢量、压缩导致轴标签不可读）进行专门的技术性讨论或评估，不符合“应讨论”的要求。\"\n    },\n    {\n      \"id\": \"SOP5\",\n      \"pass\": true,\n      \"score\": 1,\n      \"evidenceQuote\": \"[确定性解析] ... category: \\\"FIGURE_PDF\\\"\",\n      \"reason\": \"所有相关问题的category均正确标记为FIGURE_PDF，且在detail中使用了[确定性解析]前缀来区分判断类型，符合SOP要求。\"\n    }\n  ],\n  \"coveragePct\": 66.67,\n  \"schemaOk\": true,\n  \"figureOrTableNote\": \"检出了Figure 1缺题注、Table 2悬空引用及页面尺寸错误；但对Figure 1的视觉质量（模糊/非矢量）缺乏独立的Vision语义判断依据，仅复述了文本中的描述。\"\n}",
+      "scoreSource": "llm-judge"
+    },
+    "ACADEMIC_REVIEWER": {
+      "agent": "ACADEMIC_REVIEWER",
+      "scoreSource": "deterministic-sop-fallback",
+      "items": [
+        {
+          "id": "A14",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Insufficient Experimental Validation (Evidence Gap)",
+          "reason": "99%/优越性被标成 Evidence Gap；未把实验标成数据造假。CRITICAL 针对幽灵 DOI，不是指控实验造假。"
+        },
+        {
+          "id": "A15",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "The claim of '99% accuracy' and superiority over prior work is based on only 20 examples, lacks an ablation study",
+          "reason": "无消融的 outperforms/99% 被明确写出。"
+        },
+        {
+          "id": "A17",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "category=REVIEW / LOGIC",
+          "reason": "5 条 Issue 的 category 均为 REVIEW 或 LOGIC，未把 Firstly 当方法缺陷。"
+        },
+        {
+          "id": "SOP4",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "remove unsupported numerical claims until robust evidence is provided",
+          "reason": "建议是补证据而非武断判定实验错误。"
+        }
+      ],
+      "coveragePct": 100.0,
+      "schemaOk": true,
+      "figureOrTableNote": "LOW 条提到 Figure 1 模糊/缺题注及 Figure 3 先于 Figure 2；Evidence Gap 引用了 Table 1。"
+    },
+    "ACADEMIC_STYLE": {
+      "agent": "ACADEMIC_STYLE",
+      "scoreSource": "deterministic-sop-fallback",
+      "items": [
+        {
+          "id": "A08",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "机械连接词 'Firstly' … In conclusion/In summary",
+          "reason": "Abstract/Introduction/Conclusion 的套话均被标出。"
+        },
+        {
+          "id": "A09",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Style edits must protect numbers such as 300 dpi, 6 pages",
+          "reason": "未把 300 dpi/6 pages 改成错误数字；而是把整句标成元指令泄露。数字本身仍在保护清单语义内。"
+        },
+        {
+          "id": "A10",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "产物无 AcademicSearch 字样",
+          "reason": "Style Artifact 未出现 AcademicSearch。"
+        },
+        {
+          "id": "SOP",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "category=STYLE, sourceAgent=ACADEMIC_STYLE",
+          "reason": "只出 ReviewIssue。字段用 issueDescription 而非 DEV_TASK 的 summary，Java validate 仍通过。"
+        }
+      ],
+      "coveragePct": 100.0,
+      "schemaOk": false,
+      "figureOrTableNote": ""
+    },
+    "REVISION_PLANNING": {
+      "agent": "REVISION_PLANNING",
+      "scoreSource": "deterministic-sop-fallback",
+      "items": [
+        {
+          "id": "A26",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "kind=HUMAN_REQUIRED … 12 F1 points gain … real experimental data",
+          "reason": "补真实实验/增益证据标 HUMAN_REQUIRED。"
+        },
+        {
+          "id": "A27",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "kind=AI_AUTOMATABLE … Remove mechanical transition words such as Firstly",
+          "reason": "文风任务可自动。"
+        },
+        {
+          "id": "A28s",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Remove the fabricated DOI 10.0000/ghost.doi … HUMAN_REQUIRED",
+          "reason": "按 skills/planning.md，幽灵 DOI 关键引用选择为 HUMAN_REQUIRED。"
+        },
+        {
+          "id": "A29",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "Recompile … ACL LaTeX template … HUMAN_REQUIRED",
+          "reason": "页规格交给人工重编译。"
+        },
+        {
+          "id": "A30",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "taskId/issueId/kind/instruction/protectedFacts",
+          "reason": "RevisionTask 字段齐全。"
+        }
+      ],
+      "coveragePct": 100.0,
+      "schemaOk": true,
+      "figureOrTableNote": ""
+    },
+    "REVISION_EXECUTION": {
+      "agent": "REVISION_EXECUTION",
+      "scoreSource": "deterministic-sop-fallback",
+      "items": [
+        {
+          "id": "A31",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "sourceVersion=1, candidateVersion=2",
+          "reason": "正式稿仍为 version 1。"
+        },
+        {
+          "id": "A32",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "candidateVersion=2 WAITING_ACCEPT",
+          "reason": "产出候选稿。"
+        },
+        {
+          "id": "A33",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "reason 为中文修改点，无「已写入正式稿」",
+          "reason": "只出 Patch + 候选稿。"
+        },
+        {
+          "id": "A35",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "originalText/proposedText/issueId",
+          "reason": "有 Patch 核心字段；缺 patchId/revisionTaskId。"
+        },
+        {
+          "id": "SOP1",
+          "pass": false,
+          "score": 0,
+          "evidenceQuote": "Planning 将幽灵 DOI 标 HUMAN_REQUIRED，Execution 仍把 Abstract 中 10.0000/ghost.doi 句改成保留 12 F1 增益",
+          "reason": "HUMAN_REQUIRED 被执行了 Patch，违反 execution.md SOP 第 1 条。"
+        }
+      ],
+      "coveragePct": 80.0,
+      "schemaOk": true,
+      "figureOrTableNote": ""
+    },
+    "FINAL_VERIFICATION": {
+      "agent": "FINAL_VERIFICATION",
+      "scoreSource": "deterministic-sop-fallback",
+      "items": [
+        {
+          "id": "A36",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "basedOnExecutionSelfReport=false ×6",
+          "reason": "全部为 false，Java 校验亦要求如此。"
+        },
+        {
+          "id": "A37",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "status=WAITING_ACCEPT",
+          "reason": "FULL_REVIEW 终态符合 A37。"
+        },
+        {
+          "id": "A38",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "notes 引用 ManuscriptRetrieval / PDF metadata，而非 Execution 自述",
+          "reason": "未采信「修好了」。"
+        },
+        {
+          "id": "SOP4",
+          "pass": true,
+          "score": 1,
+          "evidenceQuote": "resolved=false stillHumanRequired=true ×6",
+          "reason": "人工项未标已解决。"
+        }
+      ],
+      "coveragePct": 100.0,
+      "schemaOk": true,
+      "figureOrTableNote": "Verification 仍写 Caption is missing、Abstract 仍有幽灵 DOI；Diff 显示候选稿已补 Figure 1 题注并改写 Abstract 句。可能未完全按候选 version 核对。页规格 612x792 仍被正确检出。"
+    }
+  },
+  "judgeInterruptedReason": "Citation / Figure 两次 Judge 调用成功后，百炼 compatible-mode 返回 Arrearage（账户欠费/额度不足）。其后 5 个 Agent 的 LLM Judge 无法完成。下列 fallback 是对照 agent-tasks.jsonl + skills SOP 的程序核对，不是千问 Judge。"
+}

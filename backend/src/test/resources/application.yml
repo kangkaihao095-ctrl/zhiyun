@@ -1,0 +1,49 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:zhiyun;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate.globally_quoted_identifiers: false
+  flyway:
+    enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+liteflow:
+  rule-source: liteflow/workflow.xml
+  enable: true
+
+zhiyun:
+  jwt:
+    secret: test-secret-please-use-32-chars!!
+  elasticsearch:
+    enabled: false
+  llm:
+    mode: dry-run
+    api-key: ""
+    provider: test
+  cs:
+    runtime: builtin
+  harness:
+    lease-ttl-seconds: 30
+  fault:
+    skip-lease: false
+    illegal-output-agent: ""
+    timeout-agent: ""
+    kill-after-agent: ""
+  eval-dir: ../eval
+  pay:
+    mock-delay-ms: 0
+  ops:
+    emails: demo@zhiyun.dev

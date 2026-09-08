@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<flow>
+    <chain name="CITATION_ONLY">THEN(citation);</chain>
+    <chain name="QUICK_REVIEW">THEN(citation, style);</chain>
+    <chain name="FULL_REVIEW">THEN(citation, figurePdf, reviewer, style, planning, execution, verification);</chain>
+</flow>

@@ -1,0 +1,50 @@
+{"id":"A01","agent":"CITATION_INTEGRITY","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"doi":"10.0000/ghost.doi","status":"NOT_VERIFIED"}}
+{"id":"A02","agent":"CITATION_INTEGRITY","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"doi":"10.1145/example.2019","status":"VERIFIED_OR_CANDIDATE"}}
+{"id":"A03","agent":"CITATION_INTEGRITY","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"rule":"existence_not_claim_support"}}
+{"id":"A04","agent":"CITATION_INTEGRITY","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"doi":"10.0000/ghost.doi","status":"NOT_VERIFIED"}}
+{"id":"A05","agent":"CITATION_INTEGRITY","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"doi":"10.18653/v1/N19-1423"}}
+{"id":"A06","agent":"CITATION_INTEGRITY","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"no_fabricated_doi":true}}
+{"id":"A07","agent":"CITATION_INTEGRITY","paper":"05-full-review-mix.md","workflow":"CITATION_ONLY","expect":{"java_validates_metadata":true}}
+{"id":"A08","agent":"ACADEMIC_STYLE","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"flags":["Firstly","In conclusion"]}}
+{"id":"A09","agent":"ACADEMIC_STYLE","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"preserve":["300 dpi","6 pages"]}}
+{"id":"A10","agent":"ACADEMIC_STYLE","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"no_academic_search":true}}
+{"id":"A11","agent":"ACADEMIC_STYLE","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"flags":["Firstly"]}}
+{"id":"A12","agent":"ACADEMIC_STYLE","paper":"01-citation-ghost.md","workflow":"QUICK_REVIEW","expect":{"flags":["Firstly","In conclusion"]}}
+{"id":"A13","agent":"ACADEMIC_STYLE","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"empty_closing":true}}
+{"id":"A14","agent":"ACADEMIC_REVIEWER","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"category":"EVIDENCE_GAP","no_fraud_claim":true}}
+{"id":"A15","agent":"ACADEMIC_REVIEWER","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"outperforms_without_ablation":true}}
+{"id":"A16","agent":"ACADEMIC_REVIEWER","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"private_split_80":true}}
+{"id":"A17","agent":"ACADEMIC_REVIEWER","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"category":"EVIDENCE_GAP"}}
+{"id":"A18","agent":"ACADEMIC_REVIEWER","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"acl_limitations_missing":true}}
+{"id":"A19","agent":"ACADEMIC_REVIEWER","paper":"01-citation-ghost.md","workflow":"FULL_REVIEW","expect":{"ghost_gain_unsupported":true}}
+{"id":"A20","agent":"FIGURE_PDF","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"pageSize":"Letter","failAclA4":true}}
+{"id":"A21","agent":"FIGURE_PDF","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"figures":0}}
+{"id":"A22","agent":"FIGURE_PDF","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"blurry_figure":true}}
+{"id":"A23","agent":"FIGURE_PDF","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"caption_missing":true}}
+{"id":"A24","agent":"FIGURE_PDF","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"table_numbering":"Table2_without_Table1"}}
+{"id":"A25","agent":"FIGURE_PDF","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"blurry_pipeline_figure":true}}
+{"id":"A26","agent":"REVISION_PLANNING","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"human_required_for_new_experiments":true}}
+{"id":"A27","agent":"REVISION_PLANNING","paper":"02-style-ai-writing.md","workflow":"FULL_REVIEW","expect":{"style_issues_ai_automatable":true}}
+{"id":"A28","agent":"REVISION_PLANNING","paper":"01-citation-ghost.md","workflow":"FULL_REVIEW","expect":{"ghost_doi_ai_or_hybrid":true}}
+{"id":"A29","agent":"REVISION_PLANNING","paper":"04-figure-pdf-issues.md","workflow":"FULL_REVIEW","expect":{"page_size_may_need_human":true}}
+{"id":"A30","agent":"REVISION_PLANNING","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"schema":"RevisionTask"}}
+{"id":"A31","agent":"REVISION_EXECUTION","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"official_version_unchanged":1}}
+{"id":"A32","agent":"REVISION_EXECUTION","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"candidate_document_version":true}}
+{"id":"A33","agent":"REVISION_EXECUTION","paper":"02-style-ai-writing.md","workflow":"FULL_REVIEW","expect":{"patch_not_overwrite":true}}
+{"id":"A34","agent":"REVISION_EXECUTION","paper":"01-citation-ghost.md","workflow":"FULL_REVIEW","expect":{"no_direct_overwrite":true}}
+{"id":"A35","agent":"REVISION_EXECUTION","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"schema":"RevisionPatch"}}
+{"id":"A36","agent":"FINAL_VERIFICATION","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"basedOnExecutionSelfReport":false}}
+{"id":"A37","agent":"FINAL_VERIFICATION","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"status":"WAITING_ACCEPT"}}
+{"id":"A38","agent":"FINAL_VERIFICATION","paper":"03-reviewer-evidence-gap.md","workflow":"FULL_REVIEW","expect":{"reject_self_report":true}}
+{"id":"A39","agent":"FINAL_VERIFICATION","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"no_waiting_accept_without_revision":true}}
+{"id":"A40","agent":"FINAL_VERIFICATION","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"dpi_untouched":"300 dpi"}}
+{"id":"A41","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"我的额度还剩多少？","expect":{"tool":"usage_query","not_plan_price":true}}
+{"id":"A42","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"轻量套餐多少钱","expect":{"contains":"¥29","source":"plans"}}
+{"id":"A43","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"ACL 用 A4 还是 Letter","expect":{"contains":"A4"}}
+{"id":"A44","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"NeurIPS 能不能交 Word","expect":{"contains":"Word"}}
+{"id":"A45","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"客服能帮我改额度吗","expect":{"contains":"不能"}}
+{"id":"A46","agent":"CUSTOMER_SERVICE","scope":"PUBLIC","query":"IEEE 对图片清晰度有什么要求","expect":{"rag":"02-ieee"}}
+{"id":"A47","agent":"WORKFLOW","paper":"01-citation-ghost.md","workflow":"CITATION_ONLY","expect":{"terminal":"DONE"}}
+{"id":"A48","agent":"WORKFLOW","paper":"02-style-ai-writing.md","workflow":"QUICK_REVIEW","expect":{"agents":["CITATION","STYLE"]}}
+{"id":"A49","agent":"WORKFLOW","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"terminal":"WAITING_ACCEPT"}}
+{"id":"A50","agent":"HARNESS","paper":"05-full-review-mix.md","workflow":"FULL_REVIEW","expect":{"idempotent_artifact":true,"fencing_token":true}}

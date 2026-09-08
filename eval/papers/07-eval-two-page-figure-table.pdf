@@ -1,0 +1,126 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 7 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 7 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 3300 >>
+stream
+BT /F1 14.0 Tf 72.0 760.0 Td (Camera-Ready Multi-Agent Review Under ACL Page Limits) Tj ET
+BT /F1 12.0 Tf 72.0 738.0 Td (Abstract) Tj ET
+BT /F1 9.0 Tf 72.0 722.0 Td (Firstly, we propose a novel multi-agent pipeline that outperforms all prior work on citation) Tj ET
+BT /F1 9.0 Tf 72.0 710.0 Td (integrity, figure quality, and camera-ready language. We claim that retrieval-augmented) Tj ET
+BT /F1 9.0 Tf 72.0 698.0 Td (review eliminates hallucinated DOIs. Smith et al. \(DOI 10.1145/3290605.3300233\) are cited as) Tj ET
+BT /F1 9.0 Tf 72.0 686.0 Td (proving that Java metadata checks are unnecessary, which they do not. We further cite a) Tj ET
+BT /F1 9.0 Tf 72.0 674.0 Td (fabricated report 10.0000/ghost.doi as the sole evidence that our method gains 12 F1 points) Tj ET
+BT /F1 9.0 Tf 72.0 662.0 Td (over Crossref lookup. BERT \(DOI 10.18653/v1/N19-1423\) is a real NAACL paper; we nonetheless) Tj ET
+BT /F1 9.0 Tf 72.0 650.0 Td (claim it already solved citation hallucination. This two-page draft is intended for ACL, yet) Tj ET
+BT /F1 9.0 Tf 72.0 638.0 Td (it was prepared on US Letter \(612x792\).) Tj ET
+BT /F1 12.0 Tf 72.0 618.0 Td (1 Introduction) Tj ET
+BT /F1 9.0 Tf 72.0 602.0 Td (In recent years, large language models have been used to review papers end-to-end. Moreover,) Tj ET
+BT /F1 9.0 Tf 72.0 590.0 Td (a single model that criticizes, rewrites, and then certifies its own rewrite is a) Tj ET
+BT /F1 9.0 Tf 72.0 578.0 Td (self-confirmation loop. Secondly, we discuss three contributions. Thirdly, we conclude with) Tj ET
+BT /F1 9.0 Tf 72.0 566.0 Td (a summary. We show 99% accuracy. Style edits must protect numbers such as 300 dpi, 6 pages,) Tj ET
+BT /F1 9.0 Tf 72.0 554.0 Td (21 cm x 29.7 cm. BERT \(DOI 10.18653/v1/N19-1423\) is overstated. Figure 1 is a blurry JPEG) Tj ET
+BT /F1 9.0 Tf 72.0 542.0 Td (screenshot of the pipeline. Caption is missing. Figure 3 is discussed before Figure 2.) Tj ET
+0.75 g
+72 430 468 90 re f
+0.55 g
+90 455 80 40 re f
+190 455 80 40 re f
+290 455 80 40 re f
+390 455 80 40 re f
+0 g
+BT /F1 6.0 Tf 98.0 468.0 Td (Parse) Tj ET
+BT /F1 6.0 Tf 198.0 468.0 Td (Chunk) Tj ET
+BT /F1 6.0 Tf 298.0 468.0 Td (Embed) Tj ET
+BT /F1 6.0 Tf 398.0 468.0 Td (Rerank) Tj ET
+BT /F1 8.0 Tf 72.0 418.0 Td (Figure 1 is blurry; caption is missing; axis text unreadable after print.) Tj ET
+BT /F1 12.0 Tf 72.0 400.0 Td (2 Method) Tj ET
+BT /F1 9.0 Tf 72.0 384.0 Td (The intended chain is Parse, Chunk, Embedding, Vector Recall, Rerank, Top-5, Agent. Chunks) Tj ET
+BT /F1 9.0 Tf 72.0 372.0 Td (inherit tenantId / manuscriptId / documentVersion / section. Citation existence is a Java +) Tj ET
+BT /F1 9.0 Tf 72.0 360.0 Td (Crossref problem; the language model only judges whether Evidence supports a Claim. If) Tj ET
+BT /F1 9.0 Tf 72.0 348.0 Td (Evidence is missing, the correct label is NOT_VERIFIED, not a guessed DOI. Revision) Tj ET
+BT /F1 9.0 Tf 72.0 336.0 Td (Execution may emit a RevisionPatch and a candidate documentVersion. Final Verification must) Tj ET
+BT /F1 9.0 Tf 72.0 324.0 Td (not trust the execution agent's self-report. ACL requires A4 \(210 mm x 297 mm\) two-column) Tj ET
+BT /F1 9.0 Tf 72.0 312.0 Td (PDF. This draft records Letter geometry 612x792, which is wrong for ACL. Official manuscript) Tj ET
+BT /F1 9.0 Tf 72.0 300.0 Td (must not be overwritten.) Tj ET
+
+endstream
+endobj
+6 0 obj
+<< /Length 2747 >>
+stream
+BT /F1 12.0 Tf 72.0 760.0 Td (3 Experiments) Tj ET
+BT /F1 9.0 Tf 72.0 744.0 Td (We report 99% accuracy on 20 examples without an ablation, without a held-out venue, and) Tj ET
+BT /F1 9.0 Tf 72.0 732.0 Td (with a private split. The superiority claim is therefore an Evidence Gap. Table 2 is) Tj ET
+BT /F1 9.0 Tf 72.0 720.0 Td (referenced in the text, but the only printed table is Table 1. We never define Table 2. The) Tj ET
+BT /F1 9.0 Tf 72.0 708.0 Td (ghost paper 10.0000/ghost.doi is said to contain the 12-point DOI-accuracy gain. Smith et) Tj ET
+BT /F1 9.0 Tf 72.0 696.0 Td (al. 10.1145/3290605.3300233 does not evaluate Crossref metadata verification.) Tj ET
+BT /F1 9.0 Tf 72.0 676.0 Td (Table 1. Comparison with prior citation checkers \(no ablation column\).) Tj ET
+0.2 w
+72 594 468 64 re S
+72 642 m 540 642 l S
+72 626 m 540 626 l S
+72 610 m 540 610 l S
+180 594 m 180 658 l S
+240 594 m 240 658 l S
+320 594 m 320 658 l S
+400 594 m 400 658 l S
+BT /F1 8.0 Tf 76.0 646.0 Td (System) Tj ET
+BT /F1 8.0 Tf 188.0 646.0 Td (F1) Tj ET
+BT /F1 8.0 Tf 250.0 646.0 Td (n) Tj ET
+BT /F1 8.0 Tf 328.0 646.0 Td (Ablation) Tj ET
+BT /F1 8.0 Tf 408.0 646.0 Td (Venue split) Tj ET
+BT /F1 8.0 Tf 76.0 630.0 Td (Crossref lookup) Tj ET
+BT /F1 8.0 Tf 188.0 630.0 Td (0.71) Tj ET
+BT /F1 8.0 Tf 250.0 630.0 Td (20) Tj ET
+BT /F1 8.0 Tf 328.0 630.0 Td (none) Tj ET
+BT /F1 8.0 Tf 408.0 630.0 Td (none) Tj ET
+BT /F1 8.0 Tf 76.0 614.0 Td (Ours \(claimed\)) Tj ET
+BT /F1 8.0 Tf 188.0 614.0 Td (0.83) Tj ET
+BT /F1 8.0 Tf 250.0 614.0 Td (20) Tj ET
+BT /F1 8.0 Tf 328.0 614.0 Td (none) Tj ET
+BT /F1 8.0 Tf 408.0 614.0 Td (none) Tj ET
+BT /F1 8.0 Tf 76.0 598.0 Td (Ghost 10.0000/ghost.doi) Tj ET
+BT /F1 8.0 Tf 188.0 598.0 Td (+12 F1) Tj ET
+BT /F1 8.0 Tf 250.0 598.0 Td (-) Tj ET
+BT /F1 8.0 Tf 328.0 598.0 Td (none) Tj ET
+BT /F1 8.0 Tf 408.0 598.0 Td (none) Tj ET
+BT /F1 12.0 Tf 72.0 570.0 Td (4 Conclusion) Tj ET
+BT /F1 9.0 Tf 72.0 554.0 Td (In conclusion, this paper has demonstrated the effectiveness of our approach. In summary, we) Tj ET
+BT /F1 9.0 Tf 72.0 542.0 Td (have shown that the method works well in various scenarios. We will add experiments, fix the) Tj ET
+BT /F1 9.0 Tf 72.0 530.0 Td (Letter/A4 mismatch, replace Figure 1, and add the missing Table 2 in a future version.) Tj ET
+BT /F1 12.0 Tf 72.0 508.0 Td (References) Tj ET
+BT /F1 8.0 Tf 72.0 492.0 Td (Devlin et al. BERT. NAACL 2019. DOI 10.18653/v1/N19-1423) Tj ET
+BT /F1 8.0 Tf 72.0 480.0 Td (Amershi et al. Guidelines for Human-AI Interaction. CHI 2019. DOI 10.1145/3290605.3300233) Tj ET
+BT /F1 8.0 Tf 72.0 468.0 Td (Ghost Author. Nonexistent study on citation accuracy. DOI 10.0000/ghost.doi) Tj ET
+BT /F1 8.0 Tf 72.0 456.0 Td (Smith, A. and Lee, B. Dry-run verified work. DOI 10.1145/example.2019) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000000373 00000 n 
+0000003725 00000 n 
+0000006524 00000 n 
+trailer << /Size 8 /Root 1 0 R >>
+startxref
+6594
+%%EOF

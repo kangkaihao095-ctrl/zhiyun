@@ -1,0 +1,133 @@
+{
+  "purpose": "regression",
+  "sla": false,
+  "note": "云笺客服回归夹具，不是线上 SLA。标准答案是要点，不是逐字背诵。",
+  "toolResult": {
+    "totalPaidYuan": 10,
+    "totalPendingYuan": 10,
+    "rechargeCount": 1,
+    "quotaBalance": 385,
+    "quotaConsumed": 12,
+    "recentLimit": 5,
+    "totalOrders": 9,
+    "truncated": true,
+    "orders": [
+      {"orderNo": "ZY-PAID-10", "amountYuan": 10, "amountCents": 1000, "status": "PAID", "demo": false, "createdAt": "2026-09-07 11:01"},
+      {"orderNo": "ZY-PEND-10", "amountYuan": 10, "amountCents": 1000, "status": "PENDING", "demo": false, "createdAt": "2026-09-07 12:01"},
+      {"orderNo": "ZY-DEMO-0", "amountYuan": 0, "amountCents": 0, "status": "PAID", "demo": true, "createdAt": "2026-09-06 09:00"}
+    ]
+  },
+  "plans": [
+    {"name": "轻量套餐", "quotaAmount": 36, "priceYuan": 29},
+    {"name": "常用套餐", "quotaAmount": 130, "priceYuan": 99}
+  ],
+  "task": {
+    "taskId": 42,
+    "status": "DONE",
+    "workflow": "FULL_REVIEW",
+    "targetVenue": "ACL",
+    "manuscriptId": 7,
+    "manuscriptTitle": "云笺查稿"
+  },
+  "cases": [
+    {
+      "id": "CS01",
+      "intent": "spent",
+      "query": "看下我过去花了多少钱了",
+      "must_contain": ["¥10", "额度消耗", "12"],
+      "must_not_contain": ["订单号", "PENDING", "ZY-PAID-10"],
+      "require_total_paid": true,
+      "notes": "先两行说清已支付充值 vs 额度消耗；不得倾倒订单清单。"
+    },
+    {
+      "id": "CS02",
+      "intent": "orders",
+      "query": "帮我查下我的历史订单消费情况",
+      "must_contain": ["¥10", "充值", "额度消耗", "最近"],
+      "must_not_contain": [],
+      "require_total_paid": true,
+      "notes": "充值合计 + 额度消耗 + 最近几笔；订单≈充值。不得与 spent 模板字节级相同。"
+    },
+    {
+      "id": "CS03",
+      "intent": "quota",
+      "query": "我的额度还剩多少？",
+      "must_contain": ["385", "额度"],
+      "must_not_contain": ["¥99"],
+      "notes": "账户余额，不是套餐标价。"
+    },
+    {
+      "id": "CS04",
+      "intent": "task",
+      "query": "查一下论文 42",
+      "must_contain": ["42", "DONE", "任务"],
+      "must_not_contain": [],
+      "notes": "审校任务状态 / 论文 id，分条列出。"
+    },
+    {
+      "id": "CS05",
+      "intent": "missing_id",
+      "query": "查一下 999999001",
+      "must_contain": ["本账户没有该 ID", "任务 ID", "稿件 ID"],
+      "must_not_contain": [],
+      "notes": "本账户没有的 id，单独一行说明。"
+    },
+    {
+      "id": "CS06",
+      "intent": "plans",
+      "query": "套餐怎么买",
+      "must_contain": ["套餐", "¥29", "充值"],
+      "must_not_contain": ["¥10"],
+      "notes": "规则可 RAG，金额仍 Tool / 套餐表。"
+    },
+    {
+      "id": "CS07",
+      "intent": "spent",
+      "query": "消费合计是多少",
+      "must_contain": ["¥10", "额度消耗"],
+      "must_not_contain": ["订单号"],
+      "require_total_paid": true,
+      "notes": "消费合计走额度消耗口径，合计数字等于 totalPaidYuan。"
+    },
+    {
+      "id": "CS08",
+      "intent": "orders",
+      "query": "查一下我的历史充值记录",
+      "must_contain": ["已支付充值合计", "¥10"],
+      "must_not_contain": [],
+      "require_total_paid": true,
+      "notes": "历史充值/订单明细：截断最近 N 条，带本地时间。"
+    },
+    {
+      "id": "CS09",
+      "intent": "orders",
+      "query": "查一下今天和昨天的订单",
+      "toolResult": {
+        "range": {"from": "2026-09-07", "to": "2026-09-08", "zone": "Asia/Shanghai"},
+        "matchedCount": 1,
+        "totalPaidYuan": 0,
+        "totalPendingYuan": 10,
+        "rechargeCount": 0,
+        "quotaBalance": 385,
+        "quotaConsumed": 12,
+        "recentLimit": 50,
+        "totalOrders": 1,
+        "truncated": false,
+        "orders": [
+          {"orderNo": "ZY202609071101ABCDEF12", "amountYuan": 10, "amountCents": 1000, "status": "PENDING", "demo": false, "createdAt": "2026-09-07 11:01"}
+        ]
+      },
+      "must_contain": ["2026-09-07", "2026-09-08", "ZY202609071101", "PENDING"],
+      "must_not_contain": ["2026-09-03", "ZY-PAID-SEP3", "最近"],
+      "notes": "必须带日期范围、只含范围内订单，不得把 9/3 的 PAID 当昨天。"
+    },
+    {
+      "id": "CS10",
+      "intent": "howto_models",
+      "query": "模型配置怎么操作",
+      "must_contain": ["设置", "模型配置", "/account?panel=models"],
+      "must_not_contain": ["通用 API Key 未上线", "联系商务"],
+      "notes": "指路设置页真实操作；禁止编造未上线的开放 API / 商务定制。"
+    }
+  ]
+}

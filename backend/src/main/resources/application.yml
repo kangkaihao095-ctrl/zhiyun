@@ -1,0 +1,104 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zhiyun
+  servlet:
+    multipart:
+      max-file-size: 40MB
+      max-request-size: 40MB
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3306/zhiyun?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=utf8}
+    username: ${MYSQL_USER:zhiyun}
+    password: ${MYSQL_PASSWORD:zhiyun}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBIT_HOST:127.0.0.1}
+    port: ${RABBIT_PORT:5672}
+    username: ${RABBIT_USER:zhiyun}
+    password: ${RABBIT_PASSWORD:zhiyun}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+
+liteflow:
+  rule-source: liteflow/workflow.xml
+  enable: true
+
+zhiyun:
+  jwt:
+    secret: ${JWT_SECRET:change-me-in-prod-please-32chars!!}
+    expire-hours: 72
+  storage:
+    dir: ${ZHIYUN_STORAGE:./data/uploads}
+    avatar-dir: ${ZHIYUN_AVATAR_DIR:./data/avatars}
+  elasticsearch:
+    url: ${ES_URL:http://127.0.0.1:9200}
+    enabled: ${ES_ENABLED:true}
+    index: zhiyun_chunks
+  llm:
+    mode: ${ZHIYUN_LLM_MODE:auto}
+    provider: ${ZHIYUN_LLM_PROVIDER:auto}
+    base-url: ${ZHIYUN_LLM_BASE_URL:https://api.siliconflow.cn/v1}
+    api-key: ${SILICONFLOW_API_KEY:}
+    dashscope-key: ${DASH_SCOPE_API_KEY:}
+    paper-model: ${ZHIYUN_PAPER_MODEL:qwen3.8-flash}
+    cs-model: ${ZHIYUN_CS_MODEL:qwen3.7-flash}
+    vision-model: ${ZHIYUN_VISION_MODEL:qwen3.8-flash}
+    image-model: ${ZHIYUN_IMAGE_MODEL:qwen-image-3.0}
+    embedding-model: ${ZHIYUN_EMBED_MODEL:qwen3.7-text-embedding}
+    rerank-model: ${ZHIYUN_RERANK_MODEL:qwen3.7-text-rerank}
+    embedding-dims: ${ZHIYUN_EMBED_DIMS:1024}
+  quota:
+    tokens-per-point: 2000
+    cap-citation: 3
+    cap-quick: 5
+    cap-full: 10
+  cs:
+    runtime: ${ZHIYUN_CS_RUNTIME:dify}
+    dify-api-url: ${DIFY_API_URL:}
+    dify-api-key: ${DIFY_API_KEY:}
+    mcp-token: ${ZHIYUN_MCP_TOKEN:}
+  cors:
+    allowed-origins: ${ZHIYUN_CORS_ORIGINS:http://127.0.0.1:5173,http://localhost:5173}
+  harness:
+    lease-ttl-seconds: 60
+    renew-seconds: 20
+  mq:
+    review-queue: zhiyun.review.tasks
+  fault:
+    illegal-output-agent: ${ZHIYUN_FAULT_ILLEGAL:}
+    timeout-agent: ${ZHIYUN_FAULT_TIMEOUT:}
+    kill-after-agent: ${ZHIYUN_FAULT_KILL:}
+    skip-lease: false
+  eval:
+    api-enabled: ${ZHIYUN_EVAL_API:}
+  eval-dir: ${ZHIYUN_EVAL_DIR:../eval}
+  pay:
+    mock-delay-ms: ${ZHIYUN_PAY_MOCK_DELAY_MS:400}
+  ops:
+    emails: ${ZHIYUN_OPS_EMAILS:demo@zhiyun.dev}
