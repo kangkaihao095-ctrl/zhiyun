@@ -86,6 +86,23 @@ function jsonFor(path: string) {
   if (path === '/manuscripts/3/versions/1/inspect') {
     return { manuscriptId: 3, versionNo: 1, format: 'MD', pagePreview: false }
   }
+  if (path.startsWith('/reviews/9/usage')) {
+    return {
+      durationMs: 12000,
+      tokens: 820,
+      quota: 1,
+      settled: true,
+      inProgress: false,
+      nodes: [{
+        name: '引用核验',
+        durationMs: 12000,
+        tokens: 820,
+        quota: 1,
+        skipped: false,
+        status: 'DONE'
+      }]
+    }
+  }
   if (path.startsWith('/reviews/9/trace')) {
     return {
       taskId: 9,
@@ -127,7 +144,7 @@ async function mountTask() {
     }
   })
   await flushPromises()
-  return { wrapper, refreshMe }
+  return { wrapper, refreshMe, router }
 }
 
 describe('Task result page', () => {
@@ -140,39 +157,52 @@ describe('Task result page', () => {
 
   it('shows checkpoint pipeline, failed node error, retry, and HUMAN_REQUIRED group', async () => {
     const { wrapper } = await mountTask()
-    const text = wrapper.text()
-    expect(text).toContain('投稿前完整审校 · Agent Trace')
-    expect(text).toContain('完成')
-    expect(text).toContain('引用核验')
-    expect(text).toContain('1.2 s')
-    expect(text).toContain('2000 token')
-    expect(text).toContain('fence 3')
-    expect(text).toContain('fencing 3')
-    expect(text).toContain('checkpoint')
-    expect(text).toContain('失败')
-    expect(text).toContain('图表检查')
-    expect(text).toContain('未到')
-    expect(text).toContain('模型输出格式校验失败，请重试。')
-    expect(text).not.toContain('structured output failed after retry')
-    expect(text).toContain('技术详情')
+    expect(wrapper.get('[data-testid="task-tab-confirm"]').classes()).toContain('on')
+    expect(wrapper.get('[data-testid="task-tab-confirm"]').text()).toContain('2')
+    expect(wrapper.get('[data-testid="task-tab-issues"]').text()).toContain('1')
+    expect(wrapper.get('[data-testid="task-tab-revise"]').text()).toContain('1')
+    const confirm = wrapper.get('[data-testid="task-panel-confirm"]').text()
+    expect(confirm).toContain('需要人工处理')
+    expect(confirm).toContain('核对幽灵引用')
+    expect(confirm).toContain('为什么高')
+    expect(confirm).toContain('会改引用结论与作者责任')
+    expect(confirm).toContain('本条无需改稿对比')
+    expect(wrapper.find('[data-testid="trace-waterfall"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('时间轴瀑布图')
+    expect(wrapper.text()).not.toContain('Agent Trace')
+    expect(wrapper.get('[data-testid="task-usage-summary"]').text()).toContain('已扣 1 额度')
+    expect(wrapper.get('[data-testid="task-usage-summary"]').text()).toContain('820 token')
+    expect(wrapper.text()).not.toContain('fencing')
+    expect(wrapper.text()).not.toContain('lease')
+    expect(wrapper.text()).not.toContain('skillVersion')
+    expect(wrapper.text()).not.toContain('errorCode')
+
+    await wrapper.get('[data-testid="task-tab-overview"]').trigger('click')
+    await flushPromises()
+    const overview = wrapper.get('[data-testid="task-panel-overview"]').text()
+    expect(overview).toContain('本次用量')
+    expect(overview).toContain('耗时')
+    expect(overview).toContain('token')
+    expect(overview).toContain('额度')
+    expect(overview).toContain('引用核验')
+    expect(overview).toContain('约 12 秒')
+    expect(overview).toContain('已结算')
+    expect(wrapper.get('[data-testid="task-usage-cols"]').text()).toContain('820 token')
+    expect(wrapper.get('[data-testid="task-usage-settled"]').text()).toContain('约 1 额度')
+    expect(overview).toContain('检查点管道')
+    expect(overview).toContain('任务 ID')
+    expect(overview).not.toContain('fencing')
+    expect(overview).not.toContain('checkpoint')
+    expect(overview).toContain('失败')
+    expect(overview).toContain('图表检查')
+    expect(overview).toContain('模型输出格式校验失败，请重试。')
+    expect(overview).not.toContain('structured output failed after retry')
+    expect(overview).toContain('技术详情')
     expect(wrapper.find('.tr-tech').attributes('open')).toBeUndefined()
-    expect(text).toContain('从检查点继续')
-    expect(text).toContain('需要人工处理')
-    expect(text).toContain('核对幽灵引用')
-    expect(text).toContain('可由系统改')
-    expect(text).toContain('任务 ID')
-    expect(text).toContain('为什么高')
-    expect(text).toContain('会改引用结论与作者责任')
-    expect(text).toContain('建议怎么改')
-    expect(text).toContain('定位')
-    expect(text).toContain('规则依据')
-    expect(text).toContain('Evidence ev-ghost')
-    await wrapper.get('.tr-summary').trigger('click')
-    expect(wrapper.text()).toContain('为什么高')
-    expect(wrapper.text()).toContain('see 10.0000/ghost.doi')
-    expect(text).toContain('导出 Artifact')
-    expect(text).toContain('导出汇总')
-    expect(text).not.toContain('PDF 页与图表')
+    expect(overview).toContain('从检查点继续')
+    expect(overview).toContain('导出 Artifact')
+    expect(overview).toContain('导出汇总')
+    expect(wrapper.text()).not.toContain('PDF 页与图表')
     await wrapper.get('.tr-retry button').trigger('click')
     await flushPromises()
     expect(api).toHaveBeenCalledWith('/reviews/9/retry', { method: 'POST' })
@@ -320,6 +350,19 @@ describe('Task result page', () => {
       if (path === '/reviews/8/cancel') {
         return Promise.resolve({ ...running, status: 'FAILED', errorMessage: '已取消' })
       }
+      if (path.startsWith('/reviews/8/usage')) {
+        return Promise.resolve({
+          durationMs: 5000,
+          tokens: 400,
+          quota: 1,
+          settled: false,
+          inProgress: true,
+          nodes: [
+            { name: '引用核验', durationMs: 5000, tokens: 400, quota: 1, skipped: false, status: 'DONE' },
+            { name: '图表检查', durationMs: null, tokens: null, quota: null, skipped: false, status: 'RUNNING' }
+          ]
+        })
+      }
       if (path === '/manuscripts/3/versions/1/inspect') {
         return Promise.resolve({ manuscriptId: 3, versionNo: 1, format: 'MD', pagePreview: false })
       }
@@ -339,9 +382,142 @@ describe('Task result page', () => {
     const wrapper = mount(Task, { global: { plugins: [router] } })
     await flushPromises()
     expect(wrapper.get('.tr-retry button').text()).toBe('取消这次审校')
+    expect(wrapper.get('[data-testid="task-usage-summary"]').text()).toContain('预计 1 额度')
+    expect(wrapper.get('[data-testid="task-usage-summary"]').text()).toContain('进行中')
+    await wrapper.get('[data-testid="task-tab-overview"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="task-usage-settled"]').text()).toContain('引用核验')
+    expect(wrapper.get('[data-testid="task-usage-running"]').text()).toContain('图表检查')
+    expect(wrapper.get('[data-testid="task-usage-running"]').text()).toContain('进行中')
     await wrapper.get('.tr-retry button').trigger('click')
     await flushPromises()
     expect(api).toHaveBeenCalledWith('/reviews/8/cancel', { method: 'POST' })
+    wrapper.unmount()
+  })
+
+  it('puts Accept / Reject on the default 需你确认 tab for WAITING_ACCEPT', async () => {
+    api.mockImplementation((path: string) => {
+      if (path === '/reviews/9') return Promise.resolve({ ...failedTask, status: 'WAITING_ACCEPT', errorMessage: null })
+      return Promise.resolve(jsonFor(path))
+    })
+    const { wrapper } = await mountTask()
+    expect(wrapper.get('[data-testid="task-tab-confirm"]').classes()).toContain('on')
+    const confirm = wrapper.get('[data-testid="task-panel-confirm"]').text()
+    expect(confirm).toContain('全部接受')
+    expect(confirm).toContain('不采纳')
+    expect(wrapper.find('[data-testid="trace-waterfall"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows git-style patch diffs on 需你确认 and 改稿', async () => {
+    api.mockImplementation((path: string) => {
+      if (path === '/reviews/9') {
+        return Promise.resolve({ ...failedTask, status: 'WAITING_ACCEPT', errorMessage: null })
+      }
+      if (path === '/reviews/9/artifacts') {
+        const base = jsonFor(path) as Array<Record<string, unknown>>
+        return Promise.resolve([
+          ...base,
+          {
+            id: 44,
+            agent: 'REVISION_EXECUTION',
+            artifactType: 'RevisionPatch',
+            payload: JSON.stringify({
+              body: [
+                {
+                  patchId: 'rp-h',
+                  issueId: 'iss-h',
+                  originalText: 'see 10.0000/ghost.doi',
+                  proposedText: 'drop the unverified citation',
+                  reason: 'DOI not found'
+                },
+                {
+                  patchId: 'rp-a',
+                  issueId: 'iss-a',
+                  originalText: 'this result shows',
+                  proposedText: 'these results suggest',
+                  reason: 'hedge the claim'
+                }
+              ]
+            })
+          }
+        ])
+      }
+      if (path === '/reviews/9/merge-preview') {
+        return Promise.resolve({
+          official: 'keep\nold sentence\nend',
+          preview: 'keep\nnew sentence\nend',
+          score: 80,
+          grade: 'B',
+          points: [],
+          reasons: [],
+          mode: 'candidate'
+        })
+      }
+      return Promise.resolve(jsonFor(path))
+    })
+    const { wrapper } = await mountTask()
+    const confirm = wrapper.get('[data-testid="task-panel-confirm"]')
+    expect(confirm.get('[data-testid="patch-diff"]').text()).toContain('see 10.0000/ghost.doi')
+    expect(confirm.get('.diff-line.del').text()).toContain('see 10.0000/ghost.doi')
+    expect(confirm.get('.diff-line.add').text()).toContain('drop the unverified citation')
+    expect(confirm.text()).not.toContain('this result shows')
+
+    await wrapper.get('[data-testid="task-tab-revise"]').trigger('click')
+    await flushPromises()
+    const revise = wrapper.get('[data-testid="task-panel-revise"]')
+    expect(revise.get('[data-testid="patch-diff"]').text()).toContain('this result shows')
+    const delText = revise.findAll('.diff-line.del').map((row) => row.text()).join('\n')
+    const addText = revise.findAll('.diff-line.add').map((row) => row.text()).join('\n')
+    expect(delText).toContain('this result shows')
+    expect(addText).toContain('these results suggest')
+    expect(delText).toContain('old sentence')
+    expect(addText).toContain('new sentence')
+    wrapper.unmount()
+  })
+
+  it('jumps from a finding to 稿件对照 with an anchor', async () => {
+    api.mockImplementation((path: string) => {
+      if (path === '/reviews/9/diff') {
+        return Promise.resolve({
+          official: 'See 10.0000/ghost.doi in the list.',
+          candidate: 'See 10.0000/ghost.doi in the list.'
+        })
+      }
+      return Promise.resolve(jsonFor(path))
+    })
+    const { wrapper, router } = await mountTask()
+    const cards = wrapper.findAll('[data-testid="task-panel-confirm"] .finding-card')
+    await cards[0].trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="task-tab-manuscript"]').classes()).toContain('on')
+    const hit = wrapper.get('#zy-hit')
+    expect(hit.attributes('data-anchor')).toBe('10.0000/ghost.doi')
+    expect(hit.text()).toContain('10.0000/ghost.doi')
+    expect(router.currentRoute.value.query.hit).toBe('iss-h')
+    expect(router.currentRoute.value.query.anchor).toBe('10.0000/ghost.doi')
+    expect(router.currentRoute.value.hash).toBe('#zy-hit')
+    wrapper.unmount()
+  })
+
+  it('writes empty copy when this review has nothing to confirm', async () => {
+    api.mockImplementation((path: string) => {
+      if (path === '/reviews/9/artifacts') return Promise.resolve([])
+      if (path === '/reviews/9/diff') return Promise.resolve({ official: '', candidate: '' })
+      return Promise.resolve(jsonFor(path))
+    })
+    const { wrapper } = await mountTask()
+    expect(wrapper.get('[data-testid="task-empty-confirm"]').text()).toBe('这次没有需你确认。')
+    expect(wrapper.get('[data-testid="task-tab-confirm"]').text()).toContain('0')
+    await wrapper.get('[data-testid="task-tab-issues"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="task-empty-issues"]').text()).toBe('这次没有问题与证据。')
+    await wrapper.get('[data-testid="task-tab-revise"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="task-empty-revise"]').text()).toBe('这次没有改稿。')
+    await wrapper.get('[data-testid="task-tab-manuscript"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="task-empty-manuscript"]').text()).toBe('这次没有稿件对照。')
     wrapper.unmount()
   })
 })

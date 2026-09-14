@@ -75,6 +75,21 @@ describe('api', () => {
     await expect(api('/manuscripts/1/reviews', { method: 'POST' })).rejects.toThrow(/连不上服务器/)
   })
 
+  it('maps Vite proxy 500 Internal Server Error to a connection error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('http proxy error', {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    })))
+    await expect(api('/auth/ops/login', { method: 'POST', body: { email: 'demo@zhiyun.dev' } }))
+      .rejects.toThrow(/连不上服务器/)
+  })
+
+  it('keeps JSON 500 body instead of collapsing it to a connection error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: '观测台聚合失败' }, { status: 500 })))
+    await expect(api('/ops/observability')).rejects.toThrow('观测台聚合失败')
+  })
+
   it('surfaces HTTP 400/403 body instead of Failed to fetch', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: '投稿期刊不在目录中' }, { status: 400 })))
     await expect(api('/manuscripts/1/reviews', { method: 'POST' })).rejects.toThrow('投稿期刊不在目录中')

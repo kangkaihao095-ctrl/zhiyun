@@ -8,8 +8,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 public interface TaskLeaseRepo extends JpaRepository<TaskLease, Long> {
+    List<TaskLease> findByTaskIdIn(Collection<Long> taskIds);
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("update TaskLease l set l.expireAt = :expireAt where l.taskId = :taskId and l.owner = :owner")

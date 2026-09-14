@@ -1,14 +1,21 @@
 <template>
-  <div class="app-root" :class="{ entering, 'on-login': onLogin }">
-    <AmbientCanvas :intense="onLogin || entering" />
-    <div class="grain" aria-hidden="true" />
-    <div class="light-sheet" aria-hidden="true" />
+  <div class="app-root" :class="{ entering, 'on-login': onLogin, 'on-ops': onOps }">
+    <AmbientCanvas v-if="!onOps && !onLogin" />
+    <div v-if="!onOps && !onLogin" class="grain" aria-hidden="true" />
+    <div v-if="!onOps && !onLogin" class="light-sheet" aria-hidden="true" />
 
     <div v-if="onLogin" class="login-layer">
+      <ThemeToggle class="login-theme" />
       <router-view v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
         </transition>
+      </router-view>
+    </div>
+
+    <div v-else-if="onOps" class="ops-frame">
+      <router-view v-slot="{ Component }">
+        <component :is="Component" />
       </router-view>
     </div>
 
@@ -58,6 +65,7 @@
             @click="goBack"
           >返回</button>
           <div class="stage-quota">
+            <ThemeToggle />
             <QuotaChip compact :quota="me.quota ?? 0" @click="goOrders" />
             <button
               class="btn btn-accent recharge-open"
@@ -77,8 +85,8 @@
       </div>
     </div>
 
-    <div class="enter-veil" aria-hidden="true" />
-    <Chat v-if="!onLogin" />
+    <div v-if="!onLogin" class="enter-veil" aria-hidden="true" />
+    <Chat v-if="!onLogin && !onOps" />
     <ToastHost />
     <RechargeModal v-model:open="rechargeOpen" @paid="loadMe" />
   </div>
@@ -89,11 +97,16 @@ import { computed, onUnmounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, token, fetchAvatarBlobUrl } from './api'
 import { goBackOrFallback, isShellRoot } from './nav-back'
+import { isAuthPublic, isOpsPath } from './auth-guard'
 import ToastHost from './components/ToastHost.vue'
 import QuotaChip from './components/QuotaChip.vue'
+import ThemeToggle from './components/ThemeToggle.vue'
 import AmbientCanvas from './components/AmbientCanvas.vue'
 import Chat from './views/Chat.vue'
 import RechargeModal from './components/RechargeModal.vue'
+import { bootTheme } from './theme'
+
+bootTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -103,7 +116,8 @@ const entering = ref(false)
 const rechargeOpen = ref(false)
 let enterTimer = 0
 
-const onLogin = computed(() => route.path === '/login')
+const onLogin = computed(() => isAuthPublic(route.path))
+const onOps = computed(() => isOpsPath(route.path))
 const onPapers = computed(() => route.path === '/' || route.path.startsWith('/manuscripts'))
 const onHistory = computed(() => route.path === '/history' || route.path.startsWith('/reviews'))
 const onBilling = computed(() => route.path === '/billing' || route.path.startsWith('/orders'))
@@ -116,7 +130,7 @@ const initials = computed(() => {
 })
 
 async function loadMe() {
-  if (!token() || route.path === '/login') {
+  if (!token() || isAuthPublic(route.path)) {
     me.value = {}
     setAvatar('')
     return
@@ -152,7 +166,7 @@ provide('me', me)
 provide('openRecharge', openRecharge)
 
 function armEnter() {
-  if (route.path === '/login' || sessionStorage.getItem('zhiyun-enter') !== '1') return
+  if (isAuthPublic(route.path) || onOps.value || sessionStorage.getItem('zhiyun-enter') !== '1') return
   sessionStorage.removeItem('zhiyun-enter')
   entering.value = true
   clearTimeout(enterTimer)

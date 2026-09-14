@@ -61,3 +61,23 @@ export function visibleDiffRows(rows, onlyChanges) {
   flush()
   return out
 }
+
+/**
+ * 单条 Patch 是否有可展示的原文/建议差异。
+ * @param {string} [original]
+ * @param {string} [proposed]
+ */
+export function hasPatchDiff(original, proposed) {
+  return String(original || '') !== String(proposed || '')
+}
+
+/**
+ * 单条 Patch 的 git 风格行 diff。无差异时为空数组。
+ * @param {string} [original]
+ * @param {string} [proposed]
+ * @returns {DiffRow[]}
+ */
+export function patchDiffRows(original, proposed) {
+  if (!hasPatchDiff(original, proposed)) return []
+  return visibleDiffRows(diffLines(original, proposed), true)
+}

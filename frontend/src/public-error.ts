@@ -5,6 +5,7 @@ export type PublicErrorCode =
   | 'timeout'
   | 'structured_output'
   | 'network'
+  | 'fencing'
   | 'unknown'
 
 export const PUBLIC_ERROR_COPY: Record<PublicErrorCode, string> = {
@@ -14,7 +15,25 @@ export const PUBLIC_ERROR_COPY: Record<PublicErrorCode, string> = {
   timeout: '审校超时，请从检查点继续。',
   structured_output: '模型输出格式校验失败，请重试。',
   network: '网络异常，请稍后重试。',
+  fencing: '审校没能完成，请稍后重试。',
   unknown: '审校没能完成，请稍后重试。'
+}
+
+/** 看板失败码短标签，不是 SLA 名。 */
+export const ERROR_CODE_LABEL: Record<PublicErrorCode, string> = {
+  cancelled: '已取消',
+  arrearage: '额度不足',
+  invalid_key: '密钥无效',
+  timeout: '超时',
+  structured_output: '输出校验失败',
+  network: '网络异常',
+  fencing: 'fencing 拒绝',
+  unknown: '其他'
+}
+
+export function errorCodeLabel(code: unknown): string {
+  const key = String(code || '') as PublicErrorCode
+  return ERROR_CODE_LABEL[key] || (key ? key : '其他')
 }
 
 const COPY_TO_CODE = new Map(
@@ -50,6 +69,9 @@ export function classifyPublicError(raw: unknown): PublicErrorCode {
   }
   if (/timeout|timed out|time-out|超时/.test(lower)) {
     return 'timeout'
+  }
+  if (/fencing/.test(lower)) {
+    return 'fencing'
   }
   if (/structured output|schema validation|illegal output/.test(lower)) {
     return 'structured_output'

@@ -87,8 +87,12 @@ public class EvalService {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("suite", "agent");
         out.put("total", rows.size());
+        out.put("expects", rows.size());
         out.put("byAgent", byAgent);
         out.put("missingPapers", missingPaper);
+        out.put("layers", List.of("L1", "L2", "L3"));
+        out.put("goldTest", "AgentGoldEvalTest");
+        out.put("sla", false);
         out.put("dir", evalDir().toAbsolutePath().toString());
         return out;
     }

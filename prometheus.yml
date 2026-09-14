@@ -1,0 +1,12 @@
+# 可选：手动 scrape 智云进程内 Actuator Prometheus（micrometer-registry-prometheus）。
+# 不是产品观测台。可观测交付面是 /ops（MySQL span 窗口）。不要 docker compose up Prometheus，也不要起 Grafana。
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: zhiyun
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["host.docker.internal:8080"]

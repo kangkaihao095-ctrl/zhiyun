@@ -8,6 +8,9 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.zhiyun.config.ZhiyunProperties;
 import com.zhiyun.domain.ChunkHash;
+import com.zhiyun.harness.HarnessMeters;
+import com.zhiyun.harness.ToolCallRecorder;
+import com.zhiyun.harness.ToolPolicy;
 import com.zhiyun.llm.LlmGateway;
 import com.zhiyun.repo.ChunkHashRepo;
 import jakarta.annotation.PostConstruct;
@@ -34,13 +37,16 @@ public class RagService {
     private final ZhiyunProperties properties;
     private final ChunkHashRepo chunkHashRepo;
     private final LlmGateway llmGateway;
+    private final HarnessMeters harnessMeters;
     private RestClient lowLevel;
     private ElasticsearchClient es;
 
-    public RagService(ZhiyunProperties properties, ChunkHashRepo chunkHashRepo, LlmGateway llmGateway) {
+    public RagService(ZhiyunProperties properties, ChunkHashRepo chunkHashRepo, LlmGateway llmGateway,
+                      HarnessMeters harnessMeters) {
         this.properties = properties;
         this.chunkHashRepo = chunkHashRepo;
         this.llmGateway = llmGateway;
+        this.harnessMeters = harnessMeters;
     }
 
     @PostConstruct
@@ -142,18 +148,24 @@ public class RagService {
     }
 
     public List<Retrieved> retrievePrivate(long tenantId, long manuscriptId, int version, String query, String section) {
+        long t0 = System.nanoTime();
         List<Retrieved> hits = knn(tenantId, manuscriptId, version, "PRIVATE", query, section);
         if (hits.isEmpty()) {
             hits = lexical(chunkHashRepo.findByManuscriptIdAndVersionNoAndTenantId(manuscriptId, version, tenantId), query);
         }
+        recordRetrieval(ToolPolicy.MANUSCRIPT_RETRIEVAL, true, (System.nanoTime() - t0) / 1_000_000L, hits.size());
+        harnessMeters.recordRetrievalPrivate(System.nanoTime() - t0);
         return rerank(query, hits);
     }
 
     public List<Retrieved> retrievePublic(String query) {
+        long t0 = System.nanoTime();
         List<Retrieved> hits = knn(0, 0, 0, "PUBLIC", query, null);
         if (hits.isEmpty()) {
             hits = lexical(chunkHashRepo.findPublicChunks(), query);
         }
+        recordRetrieval(ToolPolicy.KNOWLEDGE_RETRIEVAL, true, (System.nanoTime() - t0) / 1_000_000L, hits.size());
+        harnessMeters.recordRetrievalPublic(System.nanoTime() - t0);
         return rerank(query, hits);
     }
 
@@ -260,6 +272,9 @@ public class RagService {
         if (es == null) {
             return List.of();
         }
+        long t0 = System.nanoTime();
+        boolean ok = true;
+        List<Retrieved> out = new ArrayList<>();
         try {
             float[] vec = llmGateway.embed(query);
             List<Float> q = new ArrayList<>();
@@ -288,7 +303,6 @@ public class RagService {
                                 return b;
                             })))
                     .size(20), Map.class);
-            List<Retrieved> out = new ArrayList<>();
             for (Hit<Map> hit : resp.hits().hits()) {
                 Map src = hit.source();
                 if (src == null) {
@@ -301,8 +315,24 @@ public class RagService {
             }
             return out;
         } catch (Exception e) {
+            ok = false;
+            out.clear();
             log.warn("knn failed: {}", e.getMessage());
             return List.of();
+        } finally {
+            long ms = (System.nanoTime() - t0) / 1_000_000L;
+            recordRetrieval("kNN", ok, ms, out.size());
+            harnessMeters.recordKnn(System.nanoTime() - t0);
+        }
+    }
+
+    /** 写入 span.tool_calls：hits 含 0；空结果另记 emptyHits。运行观测，不是召回率 SLA。 */
+    static void recordRetrieval(String tool, boolean ok, long durationMs, int hits) {
+        int n = Math.max(0, hits);
+        ToolCallRecorder.record(tool, ok, durationMs);
+        ToolCallRecorder.extra(tool, "hits", n);
+        if (n == 0) {
+            ToolCallRecorder.extra(tool, "emptyHits", 1);
         }
     }
 

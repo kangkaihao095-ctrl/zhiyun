@@ -12,7 +12,8 @@ export function isShellRoot(route) {
 export function moduleFallback(route) {
   const path = route?.path || ''
   if (path.startsWith('/manuscripts')) return '/'
-  if (path.startsWith('/reviews')) return '/history'
+  if (path === '/history' || path.startsWith('/reviews')) return '/history'
+  if (path === '/ops' || path.startsWith('/ops')) return '/login'
   if (path === '/billing' || path.startsWith('/orders')) return '/billing'
   if (path === '/account' || path.startsWith('/models')) return '/account'
   return '/'

@@ -2,7 +2,7 @@
 
 多租户论文审校 SaaS。上传 PDF / DOCX / Markdown / TXT / TeX，按 Workflow 跑多 Agent 审校；修改以候选稿给出，作者 Accept / Reject 后才写入正式稿。独立智能客服「云笺」回答套餐、额度、订单和任务进度。
 
-核心抽象：`Prompt → Skill → Agent → Workflow`。LiteFlow 编排节点；Harness 负责租约、fencing token、checkpoint、Tool 白名单与 Structured Output 校验。Agent 之间传递 `ReviewIssue / Evidence / RevisionTask / RevisionPatch / VerificationResult`，不共享完整聊天历史。
+核心抽象：`Prompt → Skill → Agent → Workflow`。LiteFlow 编排节点；Harness 负责租约、fencing token、checkpoint、Tool 白名单与 Structured Output 校验。Agent 之间传递 `ReviewIssue / Evidence / RevisionTask / RevisionPatch / VerificationResult` 结构化对象。
 
 ## 功能
 
@@ -14,7 +14,8 @@
 - **云笺**：RAG + 只读 Java Tool + SSE；对话驻留前端内存，刷新即新会话
 - **RAG**：公共投稿规范 / 写作指南（`scope=PUBLIC`）与论文私有 Chunk（`tenantId + manuscriptId + documentVersion`）分 Scope 检索
 - **计费**：额度账户；`POST /api/orders/{id}/mock-pay` 模拟支付到账
-- **多租户**：共享 MySQL / Elasticsearch；行 / 文档级 `tenantId` 隔离。身份取自 JWT（`sub=userId`, `tid=tenantId`），不信任请求体中的 `tenantId`
+- **多租户**：共享 MySQL / Elasticsearch；行 / 文档级 `tenantId` 隔离。身份取自 JWT（`sub=userId`, `tid=tenantId`）
+- **观测台**：管理员壳 `/ops`，按时间窗看任务、Agent 瀑布与 Harness
 
 ## 技术栈
 
@@ -38,7 +39,7 @@
 | Embedding | `ZHIYUN_EMBED_MODEL` | `qwen3.7-text-embedding`（`dims=1024`） |
 | Rerank | `ZHIYUN_RERANK_MODEL` | `qwen3.7-text-rerank` |
 
-论文 Agent 职责差靠 Prompt / Skill / Context / ToolPolicy，不按 Agent 换默认型号。用户可在「设置 → 模型」为单个论文 Agent 填 OpenAI 兼容 Key；云笺与 Embedding / Rerank 仍走平台配置。
+各论文 Agent 由 Prompt、Skill、Context 与 ToolPolicy 配置。用户可在「设置 → 模型」为单个论文 Agent 填 OpenAI 兼容 Key；云笺与 Embedding / Rerank 使用平台配置。
 
 ## 架构
 
@@ -55,20 +56,21 @@ Spring Boot :8080
     └─ RabbitMQ 审校队列 zhiyun.review.tasks
 
 MySQL 3306   Redis 6379   RabbitMQ 5672   Elasticsearch 9200
+观测台 /ops（ops 登录）
 ```
 
-任务状态：`PENDING → RUNNING → WAITING_ACCEPT → DONE`，失败为 `FAILED`。`CITATION_ONLY` / `QUICK_REVIEW` 无候选稿时直接 `DONE`。额度不足返回 409，不建任务。
+任务状态：`PENDING → RUNNING → WAITING_ACCEPT → DONE`，失败为 `FAILED`。`CITATION_ONLY` / `QUICK_REVIEW` 无候选稿时直接 `DONE`。额度不足返回 409。
 
 额度：`ceil(tokens / 2000)` 点，最少 1 点，不超过该 Workflow 上限（Citation 3 / Quick 5 / Full 10），且不超过余额。同一 `taskId` 只结算一次。自备模型时记技能费：引用核验 1 / 快速审读 1 / 完整审校 2。
 
 ## 环境要求
 
-- JDK **17**（不要用更新的非 LTS 发行版跑本仓库）
+- JDK **17**
 - Maven 3.9+
 - Node.js 18+
 - Docker（MySQL、Redis、RabbitMQ、Elasticsearch）
 
-本机端口：后端 `8080`，前端 `5173`。中间件：MySQL `3306`、Redis `6379`、RabbitMQ `5672`（管理台 `15672`）、Elasticsearch `9200`。
+本机端口：后端 `8080`，前端 `5173`。中间件：MySQL `3306`、Redis `6379`、RabbitMQ `5672`（管理台 `15672`）、Elasticsearch `9200`。观测台入口为管理员 `/ops`。
 
 ## 快速开始
 
@@ -79,11 +81,11 @@ cd zhiyun
 docker compose up -d
 ```
 
-MySQL 库名 / 用户 / 密码均为 `zhiyun`。RabbitMQ 用户 / 密码均为 `zhiyun`。Elasticsearch 单节点、关闭 xpack 安全。
+MySQL 库名 / 用户 / 密码均为 `zhiyun`。RabbitMQ 用户 / 密码均为 `zhiyun`。Elasticsearch 单节点、关闭 xpack 安全。`docker compose up -d` 启动 MySQL / Redis / RabbitMQ / Elasticsearch。
 
 ### 2. 配置模型（可选）
 
-无 Key 时 `ZHIYUN_LLM_MODE=auto` 走 **dry-run**（fixture / hash 伪向量），服务可以起来，审校结果不是真实模型输出。
+无 Key 且 `ZHIYUN_LLM_MODE=auto` 时走 **dry-run**（fixture / hash 伪向量）。
 
 真实调用：复制 [`.env.example`](.env.example)，导出 Key 后再启动后端。百炼：
 
@@ -96,7 +98,7 @@ export ZHIYUN_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 
 或硅基流动：`SILICONFLOW_API_KEY` + `ZHIYUN_LLM_BASE_URL=https://api.siliconflow.cn/v1`。
 
-云笺默认 `ZHIYUN_CS_RUNTIME=dify`。同时设置 `DIFY_API_URL`（例如 `https://api.dify.ai/v1`）和 `DIFY_API_KEY` 时走远程 Chatflow；否则走同契约本地 Adapter。Java 仍是额度 / 订单 / 任务权威。
+云笺默认 `ZHIYUN_CS_RUNTIME=dify`。同时设置 `DIFY_API_URL`（例如 `https://api.dify.ai/v1`）和 `DIFY_API_KEY` 时走远程 Chatflow；否则走同契约本地 Adapter。额度、订单、任务由 Java 服务记录。
 
 ### 3. 启动后端
 
@@ -107,7 +109,7 @@ export SPRING_PROFILES_ACTIVE=local
 cd backend && mvn spring-boot:run
 ```
 
-Flyway 在启动时建表并写入种子数据。健康检查：
+Flyway 在启动时建表，并写入演示账号与套餐。健康检查：
 
 ```bash
 curl -s http://127.0.0.1:8080/actuator/health
@@ -123,7 +125,7 @@ npm install
 npm run dev
 ```
 
-浏览器打开 [http://127.0.0.1:5173](http://127.0.0.1:5173)。Vite 把 `/api` 代理到 `8080`。出现「Failed to fetch」时先确认 8080 是否在运行。
+浏览器打开 [http://127.0.0.1:5173](http://127.0.0.1:5173)。Vite 把 `/api` 代理到 `8080`。
 
 ## 演示账号
 
@@ -131,11 +133,27 @@ npm run dev
 |---|---|
 | 邮箱 | `demo@zhiyun.dev` |
 | 密码 | `demo123456` |
-| 种子额度 | 10 |
+| 额度 | 10 |
 
-登录页预填该账号。注册新用户会新建租户，赠送 **3** 额度。
+登录页预填该账号；同一账号可从 `/ops/login` 进入观测台。注册新用户会新建租户，赠送 **3** 额度。
 
-主路径：登录 → 建课题 / 上传稿件 → 选刊（可选）→ 选 Workflow 启动审校 → 查看 Artifact / 报告 → `FULL_REVIEW` 时 Accept 或 Reject → 导出 → 订单页 mock 充值 → 云笺问额度。评测样稿在 [`eval/papers/`](eval/papers/)。
+主路径：登录 → 建课题 / 上传稿件 → 选刊（可选）→ 选 Workflow 启动审校 → 查看 Artifact / 报告 → `FULL_REVIEW` 时 Accept 或 Reject → 导出 → 订单页 mock 充值 → 云笺问额度。
+
+## 观测台
+
+管理员登录 [`/ops/login`](http://127.0.0.1:5173/ops/login)，看板 [`/ops`](http://127.0.0.1:5173/ops)。前端 `5173` 起来后，演示账号可进入。
+
+数据按时间窗聚合 MySQL 的 `review_task`、`agent_span`、`task_lease`：窗口内的任务、Agent 节点与执行租约。记录带 `tenantId / taskId / agent / tool` 标签。观测台统计窗口内空召回次数，以及 Citation 的 `NOT_VERIFIED` 分布。
+
+看板三层：
+
+- **L1 总览**：窗口内创建 / 完成 / 积压、耗时分位、跨实验室活跃与失败
+- **L2 一条任务**：点开任务看 Agent 瀑布，键是 `taskId + Agent`
+- **L3 领域**：Agent / Tool 耗时与调用、LLM、引用核验、RAG 空召回、Harness
+
+Harness 指标在 L3：lease 持有与过期、fencing 抬升与拒绝、checkpoint 跳过的节点。
+
+时间窗从 15 分钟到至今；侧栏按实验室下钻。失败码按窗口计数。失败占比、fencing 拒绝、工具失败、空召回、积压达到窗口规则时，看板顶部标出对应条目。
 
 ## 配置
 
@@ -148,15 +166,12 @@ npm run dev
 | `ZHIYUN_CS_RUNTIME` | `dify` | `dify` 或 `builtin` |
 | `DIFY_API_URL` / `DIFY_API_KEY` | 空 | 远程云笺；都空则本地 Adapter |
 | `ZHIYUN_MCP_TOKEN` | 本机回落 `dev-mcp-token` | MCP 请求头 `X-Zhiyun-Mcp-Token` |
-| `JWT_SECRET` | 仓库占位（≥32 字符） | `prod` 拒绝仓库默认值，进程不启动 |
-| `ZHIYUN_CORS_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | 逗号分隔；`*` 会被忽略 |
-| `ZHIYUN_EVAL_API` | 空（关闭） | 仅非 `prod` 且显式 `true` 时开启 `/api/eval` |
+| `JWT_SECRET` | 仓库占位（≥32 字符） | `prod` 使用仓库占位值或长度不足时进程退出 |
+| `ZHIYUN_CORS_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | 逗号分隔的 Origin 列表 |
 | `MYSQL_URL` / `MYSQL_USER` / `MYSQL_PASSWORD` | 本机 3306 / `zhiyun` | 数据源 |
 | `ES_URL` | `http://127.0.0.1:9200` | 向量索引 `zhiyun_chunks` |
 
-`application-local.yml` 已列入 `.gitignore`，用于本机密钥，不要提交。
-
-非本机部署：更换 `JWT_SECRET`；不要把 `dev-mcp-token` 带到可对外环境；CORS 写前端 Origin。
+`application-local.yml` 已列入 `.gitignore`，用于本机密钥。生产环境的 `JWT_SECRET`、MCP token 与 CORS Origin 按部署填写。
 
 ## 目录结构
 
@@ -180,7 +195,6 @@ zhiyun/
 │   │   └── db/migration/    Flyway
 │   └── pom.xml
 ├── frontend/                Vue 3（论文 / 审校 / 订单 / 设置 + 云笺浮层）
-├── eval/                    自建评测集
 ├── prompts/                 与 classpath 同步的 Prompt
 ├── skills/                  与 classpath 同步的 Skill
 ├── scripts/rebuild-public-knowledge.sh
@@ -188,7 +202,7 @@ zhiyun/
 └── .env.example
 ```
 
-页面：`/` 论文，`/history` 审校，`/billing` 订单，`/account` 设置（`?panel=models` 模型），`/manuscripts/:id` 稿件，`/reviews/:id` 任务。云笺为全局浮层，不单独路由。
+作者侧栏：`/` 论文，`/history` 审校，`/billing` 订单，`/account` 设置（`?panel=models` 模型）。稿件 `/manuscripts/:id`，任务 `/reviews/:id`（本次耗时、token、额度）。观测台 `/ops`（登录 `/ops/login`）为独立管理员壳。云笺为全局浮层。
 
 ## Agent 与 Tool
 
@@ -197,19 +211,19 @@ zhiyun/
 | Citation Integrity | CitationParser、AcademicSearch、MetadataVerifier、WebSearch、ManuscriptRetrieval |
 | Figure / PDF Quality | PDFParse、PDFRender、FigureExtract、FigureMetadata、Vision |
 | Academic Reviewer | ManuscriptRetrieval、AcademicSearch |
-| Academic Style | DocumentRead（不授予 AcademicSearch） |
-| Revision Planning | 无外部写工具，只读上游 Artifact |
+| Academic Style | DocumentRead |
+| Revision Planning | 只读上游 Artifact |
 | Revision Execution | DocumentRead、DocumentPatch、DocxTool |
 | Final Verification | ManuscriptRetrieval、AcademicSearch、MetadataVerifier、PDF/Figure、Diff |
 | 云笺 | KnowledgeRetrieval、TaskStatus、UsageQuery、OrderQuery、CitationResult 等，全部只读 |
 
-Citation：Java 调 Crossref 做 metadata 校验；LLM 判断 Evidence 是否支持 Claim；无可信 Evidence 返回 `NOT_VERIFIED`。Figure：DPI、页尺寸、编号等由程序检查，模糊 / 不可读 / 失真再交给 Vision。Execution 只写候选 `documentVersion`，不覆盖正式稿。Final Verification 的 `basedOnExecutionSelfReport` 为 `false`。
+Citation：Java 调 Crossref 做 metadata 校验；LLM 判断 Evidence 是否支持 Claim；无可信 Evidence 返回 `NOT_VERIFIED`。Figure：DPI、页尺寸、编号等由程序检查，模糊 / 不可读 / 失真再交给 Vision。Execution 写入候选 `documentVersion`，作者 Accept 后进入正式稿。Final Verification 的 `basedOnExecutionSelfReport` 为 `false`。
 
 RevisionTask 分类：`AI_AUTOMATABLE` / `HUMAN_REQUIRED` / `HYBRID`。补实验、改真实数据、改研究方法、关键引用最终选择标为人工。
 
 ## RAG
 
-- 切分：按 Markdown / 论文章节与段落语义切，不设固定 size / overlap
+- 切分：按 Markdown / 论文章节与段落语义切
 - 上传链：`Parse → Chunk → Embedding → Elasticsearch`
 - Chunk 字段：`tenantId, researchProjectId, manuscriptId, documentVersion, section, chunkId, scope(PUBLIC\|PRIVATE)`
 - 查询：kNN + `filter`，召回约 20，Rerank 后 Top-5
@@ -226,12 +240,13 @@ RevisionTask 分类：`AI_AUTOMATABLE` / `HUMAN_REQUIRED` / `HYBRID`。补实验
 
 ## API 摘要
 
-前缀 `/api`。除 `/auth/**`、`/actuator/health` 外需要 `Authorization: Bearer <jwt>`。
+前缀 `/api`。除 `/auth/**`、`/actuator/health`、`/actuator/prometheus` 外需要 `Authorization: Bearer <jwt>`。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/auth/register` | 注册并创建租户 |
 | POST | `/auth/login` | 返回 JWT |
+| POST | `/auth/ops/login` | 观测台登录，返回 ops JWT |
 | GET | `/workflows` | 三条 Workflow、额度上限 |
 | GET | `/venues` | 期刊目录 |
 | GET | `/me` | 当前用户与额度 |
@@ -243,6 +258,7 @@ RevisionTask 分类：`AI_AUTOMATABLE` / `HUMAN_REQUIRED` / `HYBRID`。补实验
 | GET | `/reviews/{taskId}/artifacts` `/report` `/diff` | Artifact、Markdown 报告、正式稿 vs 候选稿 |
 | POST | `/reviews/{taskId}/accept` `/reject` `/cancel` | 采纳 / 拒绝 / 取消 |
 | POST | `/cs/chat` | 云笺 SSE。`event: token` 增量，`event: done` 结束 |
+| GET | `/ops/observability` | 观测台窗口聚合。须 ops JWT |
 
 MCP：`/api/mcp`，请求头 `X-Zhiyun-Mcp-Token`，绑定会话 `tenantId / userId`，只读。
 
@@ -251,24 +267,20 @@ MCP：`/api/mcp`，请求头 `X-Zhiyun-Mcp-Token`，绑定会话 `tenantId / use
 ## 测试
 
 ```bash
-# 后端：H2 + dry-run，不依赖 Docker
+# 后端：H2 + dry-run
 cd backend && mvn test
 
 # 前端
 cd frontend && npm test
 ```
 
-评测集说明见 [`eval/README.md`](eval/README.md)。`GET /api/eval` 默认关闭；非 `prod` 且 `ZHIYUN_EVAL_API=true` 时可登录后调用。评估数字用于仓库内回归，不是线上 SLA。
-
-自建样本规模（仓库 `eval/` + 公共知识切片）：约 1 万条知识片段、50 条标注查询（`Recall@5`）、50 组 Agent 任务目录。Structured Output 经 Schema / 权限 / 业务校验后失败会再试 1 次。
-
 ## Harness
 
 - Lease TTL 60s，每 20s 续期；过期后消息可重投
 - 授予租约时 `fencing_token` 递增；旧 token 写入拒绝
 - Checkpoint 粒度 = Agent 节点；重跑跳过已完成节点
-- Artifact 唯一键 `(task_id, agent, artifact_type)`，重复执行不插第二份
+- Artifact 唯一键 `(task_id, agent, artifact_type)`
 
 ## 许可证
 
-仓库内公共知识文稿改编自各刊作者须知及 MIT / Apache 上游 Skill（见各 `knowledge/*.md` 文首来源行）。本仓库代码未附 LICENSE 文件时，使用前请自行确认授权范围。
+仓库内公共知识文稿改编自各刊作者须知及 MIT / Apache 上游 Skill（见各 `knowledge/*.md` 文首来源行）。本仓库代码未附 LICENSE 文件。

@@ -10,6 +10,8 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/login', component: Blank },
+      { path: '/ops/login', component: Blank },
+      { path: '/ops', component: Blank },
       { path: '/', component: Blank },
       { path: '/chat', redirect: '/' },
       { path: '/account', component: Blank }
@@ -27,6 +29,11 @@ describe('authGuard', () => {
 
   it('allows the login page without a token', () => {
     expect(authGuard({ path: '/login' })).toBeUndefined()
+    expect(authGuard({ path: '/ops/login' })).toBeUndefined()
+  })
+
+  it('sends anonymous ops traffic to the ops login', () => {
+    expect(authGuard({ path: '/ops' })).toBe('/ops/login')
   })
 
   it('allows authenticated routes', () => {

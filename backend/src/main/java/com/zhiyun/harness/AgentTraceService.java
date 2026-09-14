@@ -2,6 +2,7 @@ package com.zhiyun.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhiyun.agent.SkillRegistry;
 import com.zhiyun.common.PublicError;
 import com.zhiyun.domain.AgentSpan;
 import com.zhiyun.domain.Artifact;
@@ -23,7 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Harness Trace：按 Agent 节点展示名称、状态、耗时、可选 token、checkpoint。
+ * Harness Trace：按 Agent 节点展示名称、状态、耗时、token、checkpoint、fencing、错误降级码。
  * 优先读 agent_span；没有则从 artifact / checkpoint / lease 拼只读时间线。不是 SLA 看板。
  */
 @Service
@@ -32,13 +33,16 @@ public class AgentTraceService {
     private final ArtifactRepo artifactRepo;
     private final TaskLeaseRepo taskLeaseRepo;
     private final ObjectMapper objectMapper;
+    private final SkillRegistry skillRegistry;
 
     public AgentTraceService(AgentSpanRepo spanRepo, ArtifactRepo artifactRepo,
-                             TaskLeaseRepo taskLeaseRepo, ObjectMapper objectMapper) {
+                             TaskLeaseRepo taskLeaseRepo, ObjectMapper objectMapper,
+                             SkillRegistry skillRegistry) {
         this.spanRepo = spanRepo;
         this.artifactRepo = artifactRepo;
         this.taskLeaseRepo = taskLeaseRepo;
         this.objectMapper = objectMapper;
+        this.skillRegistry = skillRegistry;
     }
 
     @Transactional
@@ -47,18 +51,40 @@ public class AgentTraceService {
         if (Codes.DONE.equals(span.getStatus())) {
             return;
         }
-        span.setTenantId(task.getTenantId());
-        span.setTaskId(task.getId());
-        span.setAgent(agent);
+        applyIdentity(span, task, agent, fencingToken);
         span.setStatus(Codes.RUNNING);
         span.setStartedAt(Instant.now());
         span.setEndedAt(null);
         span.setDurationMs(null);
         span.setTokens(null);
-        span.setFencingToken(fencingToken);
         span.setCheckpoint(false);
+        span.setSkipped(false);
         span.setErrorMessage(null);
+        span.setErrorCode(null);
         spanRepo.save(span);
+    }
+
+    /**
+     * 重投时 Artifact 已在：记 checkpoint 跳过，不重复跑模型。已有 DONE span 只打 skipped。
+     */
+    @Transactional
+    public void skip(ReviewTask task, String agent, long fencingToken) {
+        AgentSpan span = spanRepo.findByTaskIdAndAgent(task.getId(), agent).orElseGet(AgentSpan::new);
+        applyIdentity(span, task, agent, fencingToken);
+        if (span.getStartedAt() == null) {
+            Instant now = Instant.now();
+            span.setStartedAt(now);
+            span.setEndedAt(now);
+            span.setDurationMs(0L);
+            span.setTokens(0);
+        }
+        span.setStatus(Codes.DONE);
+        span.setSkipped(true);
+        span.setCheckpoint(agent.equals(task.getCheckpointAgent()));
+        span.setErrorMessage(null);
+        span.setErrorCode(null);
+        spanRepo.save(span);
+        markCheckpoint(task.getId(), task.getTenantId(), task.getCheckpointAgent());
     }
 
     @Transactional
@@ -66,9 +92,7 @@ public class AgentTraceService {
         AgentSpan span = spanRepo.findByTaskIdAndAgent(task.getId(), agent).orElseGet(AgentSpan::new);
         Instant end = Instant.now();
         Instant start = span.getStartedAt() == null ? end : span.getStartedAt();
-        span.setTenantId(task.getTenantId());
-        span.setTaskId(task.getId());
-        span.setAgent(agent);
+        applyIdentity(span, task, agent, fencingToken);
         span.setStatus(Codes.DONE);
         if (span.getStartedAt() == null) {
             span.setStartedAt(start);
@@ -76,9 +100,11 @@ public class AgentTraceService {
         span.setEndedAt(end);
         span.setDurationMs(Math.max(0, Duration.between(start, end).toMillis()));
         span.setTokens(Math.max(0, tokens));
-        span.setFencingToken(fencingToken);
         span.setCheckpoint(true);
+        span.setSkipped(Boolean.TRUE.equals(span.getSkipped()));
         span.setErrorMessage(null);
+        span.setErrorCode(null);
+        applyToolCalls(span);
         spanRepo.save(span);
         markCheckpoint(task.getId(), task.getTenantId(), agent);
     }
@@ -88,18 +114,19 @@ public class AgentTraceService {
         AgentSpan span = spanRepo.findByTaskIdAndAgent(task.getId(), agent).orElseGet(AgentSpan::new);
         Instant end = Instant.now();
         Instant start = span.getStartedAt() == null ? end : span.getStartedAt();
-        span.setTenantId(task.getTenantId());
-        span.setTaskId(task.getId());
-        span.setAgent(agent);
+        applyIdentity(span, task, agent, fencingToken);
         span.setStatus(Codes.FAILED);
         if (span.getStartedAt() == null) {
             span.setStartedAt(start);
         }
         span.setEndedAt(end);
         span.setDurationMs(Math.max(0, Duration.between(start, end).toMillis()));
-        span.setFencingToken(fencingToken);
         span.setCheckpoint(false);
-        span.setErrorMessage(clip(PublicError.message(error)));
+        span.setSkipped(false);
+        String raw = error == null ? "" : error;
+        span.setErrorMessage(clip(PublicError.message(raw)));
+        span.setErrorCode(PublicError.code(raw));
+        applyToolCalls(span);
         spanRepo.save(span);
     }
 
@@ -128,10 +155,16 @@ public class AgentTraceService {
                 row.put("durationMs", span.getDurationMs());
                 row.put("tokens", span.getTokens());
                 row.put("fencingToken", span.getFencingToken());
-                row.put("checkpoint", agent.equals(checkpoint));
+                row.put("checkpoint", agent.equals(checkpoint) || Boolean.TRUE.equals(span.getCheckpoint()));
+                row.put("skipped", Boolean.TRUE.equals(span.getSkipped()));
+                row.put("skillVersion", version(span.getSkillVersion()));
+                row.put("promptVersion", version(span.getPromptVersion()));
                 String raw = span.getErrorMessage() == null ? "" : span.getErrorMessage();
                 row.put("errorMessage", PublicError.message(raw));
-                row.put("errorCode", PublicError.code(raw));
+                String code = span.getErrorCode();
+                row.put("errorCode", code == null || code.isBlank() ? PublicError.code(raw) : code);
+                row.put("toolName", span.getToolName() == null ? "" : span.getToolName());
+                row.put("toolCalls", parseToolCalls(span.getToolCalls()));
             } else {
                 fillFromArtifacts(row, task, agent, i, doneIdx, artifacts, lease.orElse(null));
             }
@@ -143,6 +176,7 @@ public class AgentTraceService {
         out.put("taskStatus", task.getStatus());
         out.put("checkpointAgent", checkpoint);
         out.put("fencingToken", task.getFencingToken());
+        out.put("caption", "运行观测 / 回归，非 SLA");
         lease.ifPresent(l -> {
             Map<String, Object> leaseRow = new LinkedHashMap<>();
             leaseRow.put("owner", l.getOwner());
@@ -152,6 +186,15 @@ public class AgentTraceService {
         });
         out.put("nodes", nodes);
         return out;
+    }
+
+    private void applyIdentity(AgentSpan span, ReviewTask task, String agent, long fencingToken) {
+        span.setTenantId(task.getTenantId());
+        span.setTaskId(task.getId());
+        span.setAgent(agent);
+        span.setFencingToken(fencingToken);
+        span.setSkillVersion(skillRegistry.skillVersion());
+        span.setPromptVersion(skillRegistry.promptVersion());
     }
 
     private void fillFromArtifacts(Map<String, Object> row, ReviewTask task, String agent, int index, int doneIdx,
@@ -188,9 +231,44 @@ public class AgentTraceService {
         row.put("tokens", null);
         row.put("fencingToken", hit != null ? hit.getFencingToken() : (lease != null && Codes.RUNNING.equals(status) ? lease.getFencingToken() : task.getFencingToken()));
         row.put("checkpoint", agent.equals(task.getCheckpointAgent()));
+        row.put("skipped", false);
+        row.put("skillVersion", version(null));
+        row.put("promptVersion", version(null));
         String raw = Codes.FAILED.equals(status) ? (task.getErrorMessage() == null ? "" : task.getErrorMessage()) : "";
         row.put("errorMessage", PublicError.message(raw));
         row.put("errorCode", PublicError.code(raw));
+        row.put("toolName", "");
+        row.put("toolCalls", List.of());
+    }
+
+    private void applyToolCalls(AgentSpan span) {
+        JsonNode calls = ToolCallRecorder.snapshot(objectMapper);
+        if (calls == null || !calls.isArray() || calls.isEmpty()) {
+            return;
+        }
+        span.setToolCalls(calls.toString());
+        span.setToolName(ToolCallRecorder.primaryTool());
+    }
+
+    private List<Map<String, Object>> parseToolCalls(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            if (!node.isArray()) {
+                return List.of();
+            }
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (JsonNode item : node) {
+                if (item.isObject()) {
+                    out.add(objectMapper.convertValue(item, Map.class));
+                }
+            }
+            return out;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private Instant producedAt(Artifact artifact) {
@@ -223,6 +301,9 @@ public class AgentTraceService {
     }
 
     private void markCheckpoint(long taskId, long tenantId, String agent) {
+        if (agent == null) {
+            return;
+        }
         for (AgentSpan span : spanRepo.findByTaskIdAndTenantIdOrderByIdAsc(taskId, tenantId)) {
             boolean on = agent.equals(span.getAgent());
             if (Boolean.TRUE.equals(span.getCheckpoint()) != on) {
@@ -230,6 +311,13 @@ public class AgentTraceService {
                 spanRepo.save(span);
             }
         }
+    }
+
+    private String version(String stored) {
+        if (stored != null && !stored.isBlank()) {
+            return stored;
+        }
+        return skillRegistry.skillVersion();
     }
 
     private static String clip(String error) {

@@ -15,6 +15,7 @@ vi.mock('../src/toast.js', () => ({ toast: vi.fn() }))
 
 import QuotaChip from '../src/components/QuotaChip.vue'
 import MergePreview from '../src/components/MergePreview.vue'
+import PatchDiff from '../src/components/PatchDiff.vue'
 import PatchPopover from '../src/components/PatchPopover.vue'
 import PdfInspectPanel from '../src/components/PdfInspectPanel.vue'
 import CopyId from '../src/components/CopyId.vue'
@@ -46,18 +47,44 @@ describe('MergePreview', () => {
     expect(wrapper.get('.merge-score').text()).toContain('82')
     expect(wrapper.get('.merge-score').text()).toContain('B')
     expect(wrapper.text()).toContain('减少过强表述')
+    expect(wrapper.get('.diff-line.del').text()).toContain('old')
+    expect(wrapper.get('.diff-line.add').text()).toContain('new')
+    expect(wrapper.get('.diff-line.del').classes()).toContain('del')
+    expect(wrapper.get('.diff-line.add').classes()).toContain('add')
     await wrapper.findAll('.pager-pill')[1].trigger('click')
     expect(wrapper.text()).toContain('未改')
   })
 })
 
+describe('PatchDiff', () => {
+  it('renders git-style delete and add lines', () => {
+    const wrapper = mount(PatchDiff, {
+      props: { original: 'old claim', proposed: 'new claim' }
+    })
+    expect(wrapper.get('[data-testid="patch-diff"]').text()).toContain('old claim')
+    expect(wrapper.get('.diff-line.del').text()).toContain('old claim')
+    expect(wrapper.get('.diff-line.add').text()).toContain('new claim')
+    expect(wrapper.get('.diff-mark').text()).toContain('−')
+    expect(wrapper.find('[data-testid="patch-diff-empty"]').exists()).toBe(false)
+  })
+
+  it('says when a card has no patch to compare', () => {
+    const wrapper = mount(PatchDiff, { props: { original: '', proposed: '' } })
+    expect(wrapper.get('[data-testid="patch-diff-empty"]').text()).toBe('本条无需改稿对比')
+    expect(wrapper.find('.diff-line').exists()).toBe(false)
+  })
+})
+
 describe('PatchPopover', () => {
-  it('emits close and shows a delete placeholder', async () => {
+  it('emits close and shows a git-style patch diff', async () => {
     const wrapper = mount(PatchPopover, {
-      props: { proposed: '', reason: '去掉套话' },
+      props: { original: 'old phrase', proposed: 'new phrase', reason: '去掉套话' },
       attachTo: document.body
     })
-    expect(document.body.textContent).toContain('（删除这段）')
+    expect(document.body.textContent).toContain('old phrase')
+    expect(document.body.textContent).toContain('new phrase')
+    expect(document.body.querySelector('.diff-line.del')).toBeTruthy()
+    expect(document.body.querySelector('.diff-line.add')).toBeTruthy()
     expect(document.body.textContent).toContain('去掉套话')
     const close = document.body.querySelector('.patch-pop-close')
     expect(close).toBeTruthy()

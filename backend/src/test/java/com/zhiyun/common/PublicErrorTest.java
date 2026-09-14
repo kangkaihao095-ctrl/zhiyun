@@ -25,6 +25,8 @@ class PublicErrorTest {
                 .isEqualTo(PublicError.STRUCTURED);
         assertThat(PublicError.message("ECONNREFUSED")).isEqualTo(PublicError.NETWORK);
         assertThat(PublicError.message("已取消")).isEqualTo(PublicError.CANCELLED);
+        assertThat(PublicError.code("stale fencing token rejected")).isEqualTo("fencing");
+        assertThat(PublicError.message("stale fencing token rejected")).isEqualTo(PublicError.UNKNOWN);
         assertThat(PublicError.message("")).isEmpty();
         assertThat(PublicError.message("unexpected boom")).isEqualTo(PublicError.UNKNOWN);
     }

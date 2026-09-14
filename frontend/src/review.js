@@ -39,6 +39,124 @@ export const KIND_META = [
   { key: 'AI_AUTOMATABLE', label: '可由系统改' }
 ]
 
+/** 用户审校页分类。不含 Trace / 可观测。 */
+export const TASK_PANELS = [
+  { key: 'overview', label: '总览' },
+  { key: 'confirm', label: '需你确认' },
+  { key: 'issues', label: '问题与证据' },
+  { key: 'revise', label: '改稿' },
+  { key: 'manuscript', label: '稿件对照' }
+]
+
+export const TASK_PANEL_EMPTY = {
+  confirm: '这次没有需你确认。',
+  issues: '这次没有问题与证据。',
+  revise: '这次没有改稿。',
+  manuscript: '这次没有稿件对照。'
+}
+
+export const DEFAULT_TASK_PANEL = 'confirm'
+export const TASK_LIST_PAGE_SIZE = 5
+export const FINDING_HIT_ID = 'zy-hit'
+
+export function taskPanelOf(raw) {
+  const key = String(raw || '')
+  return TASK_PANELS.some((p) => p.key === key) ? key : DEFAULT_TASK_PANEL
+}
+
+export function taskPanelCounts({
+  artifacts,
+  humanIssues,
+  humanTasks,
+  restIssues,
+  evidence,
+  autoTasks,
+  autoPatches,
+  displayPatches
+} = {}) {
+  return {
+    overview: (artifacts || []).length,
+    confirm: (humanTasks || []).length + (humanIssues || []).length,
+    issues: (restIssues || []).length + (evidence || []).length,
+    revise: (autoTasks || []).length + (autoPatches || []).length,
+    manuscript: (displayPatches || []).length
+  }
+}
+
+export function findingAnchorOf(issue) {
+  if (!issue) return ''
+  return readAnchor(issue.location) || String(issue.doi || '').trim() || String(issue.id || '').trim()
+}
+
+export function pageSlice(items, page, size = TASK_LIST_PAGE_SIZE) {
+  const list = Array.isArray(items) ? items : []
+  const s = Math.max(1, Number(size) || TASK_LIST_PAGE_SIZE)
+  const pages = Math.max(1, Math.ceil(list.length / s) || 1)
+  const p = Math.min(pages, Math.max(1, Number(page) || 1))
+  return {
+    items: list.slice((p - 1) * s, p * s),
+    page: p,
+    size: s,
+    total: list.length,
+    pages
+  }
+}
+
+export function taskKindOfIssue(issue, taskList) {
+  const id = issue?.id
+  if (!id) return ''
+  const hit = (taskList || []).find((t) => t.issueId && t.issueId === id)
+  return hit?.kind || ''
+}
+
+export function isHumanRequiredIssue(issue, taskList) {
+  return taskKindOfIssue(issue, taskList) === 'HUMAN_REQUIRED'
+}
+
+export function humanRequiredIssues(issues, taskList) {
+  return (issues || []).filter((item) => isHumanRequiredIssue(item, taskList))
+}
+
+export function otherIssues(issues, taskList) {
+  return (issues || []).filter((item) => !isHumanRequiredIssue(item, taskList))
+}
+
+export function patchTaskKind(p, issueList, taskList) {
+  const issue = findRelatedIssue(p, issueList || [])
+  const hit = (taskList || []).find((t) =>
+    (p?.issueId && t.issueId === p.issueId) || (issue && t.issueId === issue.id)
+  )
+  return hit?.kind || ''
+}
+
+export function humanRequiredPatches(patches, issueList, taskList) {
+  return (patches || []).filter((p) => patchTaskKind(p, issueList, taskList) === 'HUMAN_REQUIRED')
+}
+
+export function revisablePatches(patches, issueList, taskList) {
+  return (patches || []).filter((p) => patchTaskKind(p, issueList, taskList) !== 'HUMAN_REQUIRED')
+}
+
+/** 任务/问题卡片对应的 Patch；本身已是 Patch 则原样返回。 */
+export function relatedPatch(item, patches) {
+  if (!item) return null
+  const list = Array.isArray(patches) ? patches : []
+  if (Object.prototype.hasOwnProperty.call(item, 'original') || Object.prototype.hasOwnProperty.call(item, 'proposed')) {
+    if (String(item.original || '') || String(item.proposed || '')) return item
+  }
+  const issueId = String(item.issueId || item.id || '')
+  if (!issueId) return null
+  return list.find((p) => p.issueId && p.issueId === issueId) || null
+}
+
+export function humanKindGroups(taskList) {
+  return revisionKindGroups(taskList).filter((g) => g.key === 'HUMAN_REQUIRED')
+}
+
+export function autoKindGroups(taskList) {
+  return revisionKindGroups(taskList).filter((g) => g.key !== 'HUMAN_REQUIRED')
+}
+
 export const CAT_META = [
   { key: 'CITATION', label: '引用核验' },
   { key: 'FIGURE_PDF', label: '图表' },
@@ -465,20 +583,31 @@ export function mergeTraceNodes(nodes, trace) {
     const checkpoint = Boolean(s.checkpoint)
     const rawError = s.errorMessage || n.errorMessage
     const failed = n.state === 'failed'
+    const skillVersion = s.skillVersion || ''
+    const promptVersion = s.promptVersion || ''
     return {
       ...n,
       durationMs,
       tokens,
       fencingToken,
       checkpoint,
+      skipped: Boolean(s.skipped),
+      startedAt: s.startedAt ?? null,
+      endedAt: s.endedAt ?? null,
+      skillVersion,
+      promptVersion,
       errorMessage: failed ? publicErrorMessage(rawError) : '',
-      errorCode: failed ? publicErrorCode(rawError) : '',
+      errorCode: failed ? (s.errorCode || publicErrorCode(rawError) || '') : '',
       errorTech: failed ? publicErrorTech(rawError) : '',
       meta: [
         formatDurationMs(durationMs),
         tokens != null && tokens !== '' ? `${tokens} token` : '',
         checkpoint ? 'checkpoint' : '',
-        fencingToken != null && fencingToken !== '' ? `fence ${fencingToken}` : ''
+        s.skipped ? 'checkpoint 跳过' : '',
+        fencingToken != null && fencingToken !== '' ? `fence ${fencingToken}` : '',
+        skillVersion ? `skill ${skillVersion}` : '',
+        promptVersion ? `prompt ${promptVersion}` : '',
+        failed && (s.errorCode || n.errorCode) ? (s.errorCode || n.errorCode) : ''
       ].filter(Boolean).join(' · ')
     }
   })
@@ -726,6 +855,10 @@ export function spotsNeedle(text, original, index) {
 export function pickFindingNeedle(issue, text) {
   if (!issue || !text) return null
   const cands = []
+  const locAnchor = readAnchor(issue.location)
+  if (locAnchor) {
+    for (const c of expandCandidates(locAnchor)) cands.push(c)
+  }
   for (const raw of [issue.originalText, issue.excerpt, issue.quote, issue.doi]) {
     for (const c of expandCandidates(raw)) cands.push(c)
   }

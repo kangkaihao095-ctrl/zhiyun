@@ -3,6 +3,7 @@ package com.zhiyun;
 import com.zhiyun.agent.SkillRegistry;
 import com.zhiyun.harness.AgentIds;
 import com.zhiyun.harness.ToolPolicy;
+import com.zhiyun.llm.AgentModelRouter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,6 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SkillRegistryTest {
     @Autowired
     SkillRegistry skillRegistry;
+    @Autowired
+    AgentModelRouter modelRouter;
 
     @Test
     void everyAgentHasPromptSkillAndToolPolicy() {
@@ -30,6 +33,9 @@ class SkillRegistryTest {
             assertThat(skillRegistry.systemMessage(agent)).contains("ToolPolicy");
         }
         assertThat(ToolPolicy.allowed(AgentIds.STYLE)).doesNotContain(ToolPolicy.ACADEMIC_SEARCH);
+        assertThat(ToolPolicy.allowed(AgentIds.STYLE)).doesNotContain(ToolPolicy.WEB_SEARCH);
+        assertThat(ToolPolicy.allowed(AgentIds.CITATION)).contains(ToolPolicy.WEB_SEARCH);
+        assertThat(ToolPolicy.allowed(AgentIds.EXECUTION)).contains(ToolPolicy.DOCX);
         assertThat(ToolPolicy.allowed(AgentIds.PLANNING)).isEmpty();
         assertThat(ToolPolicy.allowed(AgentIds.CS)).contains(ToolPolicy.USAGE_QUERY, ToolPolicy.KNOWLEDGE_RETRIEVAL);
         assertThat(skillRegistry.skill(AgentIds.STYLE)).contains("humanizer");
@@ -39,5 +45,7 @@ class SkillRegistryTest {
         assertThat(skillRegistry.prompt(AgentIds.STYLE)).contains("中译英");
         assertThat(skillRegistry.prompt(AgentIds.STYLE)).contains("TargetVenue");
         assertThat(skillRegistry.skill(AgentIds.STYLE)).doesNotContain("AcademicSearchTool");
+        assertThat(modelRouter.resolve(AgentIds.CS)).isNull();
+        assertThat(modelRouter.chatModel(AgentIds.CS)).isEqualTo("qwen3.7-flash");
     }
 }

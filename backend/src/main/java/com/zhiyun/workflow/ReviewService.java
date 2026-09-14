@@ -108,7 +108,7 @@ public class ReviewService {
         task.setSourceVersion(ms.getCurrentVersion());
         task.setIdempotencyKey(UUID.randomUUID().toString());
         task = reviewTaskRepo.saveAndFlush(task);
-        dispatch(task.getId());
+        dispatch(task);
         return reviewTaskRepo.findById(task.getId()).orElse(task);
     }
 
@@ -127,7 +127,8 @@ public class ReviewService {
         }
         leaseService.forceRelease(task.getId());
         long id = task.getId();
-        dispatch(id);
+        ReviewTask queued = reviewTaskRepo.findById(id).orElse(task);
+        dispatch(queued);
         // execute() 会清 TenantContext，这里不能再读租户上下文
         return reviewTaskRepo.findById(id).orElse(task);
     }
@@ -210,19 +211,21 @@ public class ReviewService {
         return canonical;
     }
 
-    private void dispatch(long taskId) {
+    private void dispatch(ReviewTask task) {
+        long taskId = task.getId();
+        String publicId = task.publicId() != null ? task.publicId() : String.valueOf(taskId);
         try {
             if (rabbitTemplate != null) {
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("taskId", taskId);
                 rabbitTemplate.convertAndSend(RabbitConfig.REVIEW_QUEUE, payload);
-                log.info("Review task {} published to {}", taskId, RabbitConfig.REVIEW_QUEUE);
+                log.info("Review task {} published to {}", publicId, RabbitConfig.REVIEW_QUEUE);
             } else {
-                log.warn("RabbitTemplate missing; executing review task {} synchronously", taskId);
+                log.warn("RabbitTemplate missing; executing review task {} synchronously", publicId);
                 orchestrator.execute(taskId);
             }
         } catch (Exception ex) {
-            log.warn("Queue publish failed for task {}; falling back to sync execution", taskId, ex);
+            log.warn("Queue publish failed for task {}; falling back to sync execution", publicId, ex);
             orchestrator.execute(taskId);
         }
     }
@@ -232,7 +235,20 @@ public class ReviewService {
     }
 
     public Map<String, Object> trace(String key) {
-        return trace(requireId(key));
+        ReviewTask task = TenantContext.require().ops()
+                ? findAny(key).orElseThrow(() -> ApiException.notFound("task not found"))
+                : get(key);
+        return agentTraceService.timeline(task);
+    }
+
+    /** 用户页本次用量：复用 trace 时间线，但 DTO 裁掉 ops 字段。 */
+    public Map<String, Object> usage(String key) {
+        ReviewTask task = get(key);
+        Map<String, Object> trace = agentTraceService.timeline(task);
+        int tokens = ReviewUsage.tokensOf(task, trace);
+        var settled = billingService.settledPoints(task.getTenantId(), task.getUserId(), "task-" + task.publicId());
+        int quota = settled.orElseGet(() -> billingService.quotePoints(task.getWorkflow(), tokens, 0));
+        return ReviewUsage.view(task, trace, quota, settled.isPresent());
     }
 
     public ReviewTask get(String key) {
@@ -256,6 +272,21 @@ public class ReviewService {
         }
         if (BusinessNos.looksNumericPk(s)) {
             return reviewTaskRepo.findByIdAndTenantId(Long.parseLong(s), tenantId);
+        }
+        return java.util.Optional.empty();
+    }
+
+    java.util.Optional<ReviewTask> findAny(String key) {
+        if (key == null || key.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String s = key.trim();
+        var byNo = reviewTaskRepo.findByTaskNo(s);
+        if (byNo.isPresent()) {
+            return byNo;
+        }
+        if (BusinessNos.looksNumericPk(s)) {
+            return reviewTaskRepo.findById(Long.parseLong(s));
         }
         return java.util.Optional.empty();
     }

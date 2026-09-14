@@ -43,8 +43,11 @@ public class DemoPasswordSeeder implements ApplicationRunner {
                 userRepo.save(user);
             }
             tenantRepo.findById(user.getTenantId()).ifPresent(tenant -> {
-                if ("Demo Lab".equals(tenant.getName()) || tenant.getName() == null || tenant.getName().isBlank()) {
-                    tenant.setName("个人实验室");
+                String name = tenant.getName();
+                if (name == null || name.isBlank()
+                        || "Demo Lab".equals(name)
+                        || "个人实验室".equals(name)) {
+                    tenant.setName("自由空间光通信实验");
                     tenantRepo.save(tenant);
                 }
             });

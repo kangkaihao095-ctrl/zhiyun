@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diffLines, visibleDiffRows } from '../src/merge-diff.js'
+import { diffLines, hasPatchDiff, patchDiffRows, visibleDiffRows } from '../src/merge-diff.js'
 
 describe('diffLines', () => {
   it('marks replacements as delete then add', () => {
@@ -26,5 +26,22 @@ describe('visibleDiffRows', () => {
     const visible = visibleDiffRows(rows, true)
     expect(visible.some((row) => row.type === 'skip' && row.count === 1)).toBe(true)
     expect(visible.filter((row) => row.type === 'del' || row.type === 'add')).toHaveLength(2)
+  })
+})
+
+describe('patchDiffRows', () => {
+  it('returns delete then add for a sentence replacement', () => {
+    const rows = patchDiffRows('see 10.0000/ghost.doi', 'remove the unverified citation')
+    expect(hasPatchDiff('see 10.0000/ghost.doi', 'remove the unverified citation')).toBe(true)
+    expect(rows).toEqual([
+      { type: 'del', text: 'see 10.0000/ghost.doi' },
+      { type: 'add', text: 'remove the unverified citation' }
+    ])
+  })
+
+  it('is empty when there is nothing to compare', () => {
+    expect(hasPatchDiff('', '')).toBe(false)
+    expect(patchDiffRows('', '')).toEqual([])
+    expect(patchDiffRows('same', 'same')).toEqual([])
   })
 })

@@ -5,6 +5,7 @@ describe('nav-back', () => {
   it('treats sidebar roots as list pages and nested routes as children', () => {
     expect(isShellRoot({ path: '/', query: {} })).toBe(true)
     expect(isShellRoot({ path: '/history', query: {} })).toBe(true)
+    expect(isShellRoot({ path: '/history', query: { view: 'observability' } })).toBe(true)
     expect(isShellRoot({ path: '/billing', query: {} })).toBe(true)
     expect(isShellRoot({ path: '/account', query: {} })).toBe(true)
     expect(isShellRoot({ path: '/manuscripts/11', query: {} })).toBe(false)
@@ -16,6 +17,8 @@ describe('nav-back', () => {
   it('falls back to the module list', () => {
     expect(moduleFallback({ path: '/manuscripts/11' })).toBe('/')
     expect(moduleFallback({ path: '/reviews/5' })).toBe('/history')
+    expect(moduleFallback({ path: '/ops' })).toBe('/login')
+    expect(moduleFallback({ path: '/history' })).toBe('/history')
     expect(moduleFallback({ path: '/billing' })).toBe('/billing')
     expect(moduleFallback({ path: '/account' })).toBe('/account')
   })

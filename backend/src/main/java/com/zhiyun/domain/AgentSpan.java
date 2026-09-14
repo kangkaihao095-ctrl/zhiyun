@@ -21,6 +21,10 @@ public class AgentSpan {
     @Column(name = "task_id")
     private Long taskId;
     private String agent;
+    @Column(name = "skill_version")
+    private String skillVersion;
+    @Column(name = "prompt_version")
+    private String promptVersion;
     private String status;
     @Column(name = "started_at")
     private Instant startedAt;
@@ -34,6 +38,16 @@ public class AgentSpan {
     @JdbcTypeCode(SqlTypes.TINYINT)
     @Column(nullable = false)
     private Boolean checkpoint = false;
+    @JdbcTypeCode(SqlTypes.TINYINT)
+    @Column(nullable = false)
+    private Boolean skipped = false;
     @Column(name = "error_message")
     private String errorMessage;
+    @Column(name = "error_code")
+    private String errorCode;
+    @Column(name = "tool_name")
+    private String toolName;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tool_calls")
+    private String toolCalls;
 }

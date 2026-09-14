@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.zhiyun.config.ZhiyunProperties;
+import com.zhiyun.harness.HarnessMeters;
+import com.zhiyun.harness.ToolCallRecorder;
+import com.zhiyun.harness.ToolPolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -21,11 +25,19 @@ public class AcademicSearchTool {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final ZhiyunProperties properties;
+    private final HarnessMeters harnessMeters;
 
     public AcademicSearchTool(RestClient restClient, ObjectMapper objectMapper, ZhiyunProperties properties) {
+        this(restClient, objectMapper, properties, null);
+    }
+
+    @Autowired
+    public AcademicSearchTool(RestClient restClient, ObjectMapper objectMapper, ZhiyunProperties properties,
+                              HarnessMeters harnessMeters) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.harnessMeters = harnessMeters;
     }
 
     public ArrayNode search(String query) {
@@ -72,6 +84,18 @@ public class AcademicSearchTool {
     }
 
     public ObjectNode lookupDoi(String doi) {
+        long t0 = System.nanoTime();
+        ObjectNode hit = lookupDoiRaw(doi);
+        long ms = (System.nanoTime() - t0) / 1_000_000L;
+        boolean ok = hit != null;
+        ToolCallRecorder.record(ToolPolicy.ACADEMIC_SEARCH, ok, ms);
+        if (harnessMeters != null) {
+            harnessMeters.recordCitationLookup(ok);
+        }
+        return hit;
+    }
+
+    private ObjectNode lookupDoiRaw(String doi) {
         if (properties.dryRun()) {
             if (doi.toLowerCase().contains("0000/ghost")) {
                 return null;

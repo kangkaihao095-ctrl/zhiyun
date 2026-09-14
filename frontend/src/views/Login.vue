@@ -1,14 +1,11 @@
 <template>
-  <div class="login-shell" :class="{ departing, busy }">
-    <div class="login-motes" aria-hidden="true">
-      <i v-for="n in 16" :key="n" />
-    </div>
+  <div class="login-shell" :class="{ busy }">
     <section class="login-story">
       <div class="login-brand-row">
         <img class="brand-logo lg" src="/logo.png" alt="智云" />
         <div>
           <div class="brand-mark login-brand">智云</div>
-          <p class="brand-sub">论文审校</p>
+          <p class="brand-sub">{{ opsMode ? '内部观测' : '论文审校' }}</p>
         </div>
       </div>
       <blockquote>上传论文，检查引用、图表和文字。</blockquote>
@@ -16,10 +13,10 @@
     </section>
     <section class="login-card">
       <form class="login-form" @submit.prevent="submit">
-        <p class="page-kicker">账户</p>
-        <h1>{{ mode === 'login' ? '登录' : '注册' }}</h1>
-        <p class="muted">{{ mode === 'login' ? '用邮箱登录后，可以上传论文、查看审校记录。' : '注册后送 3 额度，可以先试一次。' }}</p>
-        <div class="auth-tabs" role="tablist">
+        <p class="page-kicker">{{ opsMode ? '内部' : '账户' }}</p>
+        <h1>{{ opsMode ? '观测台' : (mode === 'login' ? '登录' : '注册') }}</h1>
+        <p class="muted">{{ opsLead }}</p>
+        <div v-if="!opsMode" class="auth-tabs" role="tablist">
           <button
             type="button"
             role="tab"
@@ -54,60 +51,67 @@
         </div>
         <input class="field" v-model="email" type="email" autocomplete="username" placeholder="邮箱" required />
         <input class="field" v-model="password" type="password" autocomplete="current-password" placeholder="密码" required />
-        <input class="field" v-if="mode==='register'" v-model="displayName" placeholder="怎么称呼你" required />
-        <button class="btn btn-accent login-go" type="submit" :disabled="busy || departing">
-          <span>{{ busy ? '正在进入…' : (mode === 'login' ? '进入' : '注册并进入') }}</span>
+        <input class="field" v-if="mode==='register' && !opsMode" v-model="displayName" placeholder="怎么称呼你" required />
+        <button class="btn btn-accent login-go" type="submit" :disabled="busy">
+          <span>{{ busy ? '正在进入…' : (opsMode ? '进入观测台' : (mode === 'login' ? '进入' : '注册并进入')) }}</span>
         </button>
         <p class="err" v-if="error">{{ error }}</p>
       </form>
     </section>
-    <div class="login-bloom" :class="{ on: departing }" aria-hidden="true" />
+    <router-link
+      v-if="!opsMode"
+      class="login-ops-entry"
+      to="/ops/login"
+      data-testid="login-ops-entry"
+    >观测台</router-link>
+    <router-link
+      v-else
+      class="login-ops-entry"
+      to="/login"
+      data-testid="login-ops-back"
+    >返回登录</router-link>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 
+const route = useRoute()
 const router = useRouter()
+const opsMode = computed(() => route.path === '/ops/login' || route.meta?.ops === true)
+const opsLead = computed(() => {
+  if (opsMode.value) return '管理员登录后查看全部实验室运行观测。非 SLA。'
+  return mode.value === 'login' ? '用邮箱登录后，可以上传论文、查看审校记录。' : '注册后送 3 额度，可以先试一次。'
+})
 const mode = ref('login')
 const email = ref('demo@zhiyun.dev')
 const password = ref('demo123456')
 const displayName = ref('一只用户')
 const error = ref('')
 const busy = ref(false)
-const departing = ref(false)
 
 function prefersReduce() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function submit() {
   error.value = ''
   busy.value = true
   try {
-    const path = mode.value === 'login' ? '/auth/login' : '/auth/register'
-    const body = mode.value === 'login'
-      ? { email: email.value, password: password.value }
-      : { email: email.value, password: password.value, displayName: displayName.value }
+    const ops = opsMode.value
+    const path = ops ? '/auth/ops/login' : (mode.value === 'login' ? '/auth/login' : '/auth/register')
+    const body = (!ops && mode.value === 'register')
+      ? { email: email.value, password: password.value, displayName: displayName.value }
+      : { email: email.value, password: password.value }
     const data = await api(path, { method: 'POST', body })
     sessionStorage.setItem('token', data.token)
-    if (prefersReduce()) {
-      router.push('/')
-      return
-    }
-    sessionStorage.setItem('zhiyun-enter', '1')
-    departing.value = true
-    await wait(1080)
-    router.push('/')
+    const dest = ops ? '/ops' : '/'
+    if (!ops && !prefersReduce()) sessionStorage.setItem('zhiyun-enter', '1')
+    router.push(dest)
   } catch (e) {
     error.value = e.message
-    departing.value = false
   } finally {
     busy.value = false
   }

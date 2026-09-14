@@ -1,5 +1,6 @@
 package com.zhiyun.rag;
 
+import com.zhiyun.tool.DocxTool;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -7,8 +8,6 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,6 @@ import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -39,6 +37,12 @@ public class DocumentParser {
     private static final Pattern CAPTION = Pattern.compile(
             "(?im)^\\s*(?:figure|fig\\.|图)\\s*(\\d+)\\s*[:.．、]\\s*(.+)$");
     private static final double BLUR_VARIANCE = 40.0;
+
+    private final DocxTool docxTool;
+
+    public DocumentParser(DocxTool docxTool) {
+        this.docxTool = docxTool;
+    }
 
     public ParsedDocument parse(MultipartFile file) throws Exception {
         String name = file.getOriginalFilename() == null ? "manuscript" : file.getOriginalFilename();
@@ -77,11 +81,8 @@ public class DocumentParser {
         if (lower.endsWith(".pdf")) {
             return parsePdf(bytes, name);
         }
-        if (lower.endsWith(".docx")) {
-            try (InputStream in = new java.io.ByteArrayInputStream(bytes); XWPFDocument doc = new XWPFDocument(in);
-                 XWPFWordExtractor extractor = new XWPFWordExtractor(doc)) {
-                return new ParsedDocument(name, extractor.getText(), List.of(), "DOCX");
-            }
+        if (lower.endsWith(".docx") || docxTool.supports(name)) {
+            return new ParsedDocument(name, docxTool.extractText(bytes), List.of(), "DOCX");
         }
         if (lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".markdown")
                 || lower.endsWith(".tex")) {

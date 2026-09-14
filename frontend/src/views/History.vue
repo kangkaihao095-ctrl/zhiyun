@@ -98,8 +98,18 @@ function safeError(row) {
   return publicErrorMessage(row?.errorMessage)
 }
 
-onMounted(load)
-watch([page, size], load)
+onMounted(async () => {
+  try {
+    await api('/inbox/read', { method: 'POST', body: { all: true } })
+    await refreshMe()
+  } catch {
+    /* 角标刷新失败不挡列表 */
+  }
+  await load()
+})
+watch([page, size], () => {
+  load()
+})
 
 function setFilter(next) {
   filter.value = next
@@ -112,12 +122,6 @@ function search() {
 }
 
 async function load() {
-  try {
-    await api('/inbox/read', { method: 'POST', body: { all: true } })
-    await refreshMe()
-  } catch {
-    /* 角标刷新失败不挡列表 */
-  }
   const data = asPage(await api('/reviews' + qs({
     q: q.value,
     page: page.value,

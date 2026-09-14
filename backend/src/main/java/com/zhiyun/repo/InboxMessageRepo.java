@@ -16,6 +16,8 @@ public interface InboxMessageRepo extends JpaRepository<InboxMessage, Long> {
 
     long countByTenantIdAndUserIdAndReadAtIsNull(Long tenantId, Long userId);
 
+    long countByTenantIdAndUserIdAndKind(Long tenantId, Long userId, String kind);
+
     Optional<InboxMessage> findByTenantIdAndUserIdAndKindAndRefId(Long tenantId, Long userId, String kind, String refId);
 
     Optional<InboxMessage> findByIdAndTenantIdAndUserId(Long id, Long tenantId, Long userId);

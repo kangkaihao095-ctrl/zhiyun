@@ -45,6 +45,10 @@ management:
     health:
       show-details: when_authorized
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] trace=%X{traceId:-} tenant=%X{tenantId:-} task=%X{taskId:-} %logger{36} - %msg%n"
+
 liteflow:
   rule-source: liteflow/workflow.xml
   enable: true

@@ -320,24 +320,49 @@ public class BillingService {
         return settleUsage(tenantId, userId, workflow, tokens, refId, 0);
     }
 
+    /**
+     * 与 {@link #settleUsage} 同一套口径：自备模型收技能费，否则 ceil(tokens/每点) 再封顶。
+     * 用户页预计额度必须走这里，不要在前端另算。
+     */
+    public int quotePoints(String workflow, int tokens, int byokAgents) {
+        if (byokAgents > 0) {
+            return skillFee(workflow);
+        }
+        int per = Math.max(1, properties.getQuota().getTokensPerPoint());
+        int cap = workflowCatalog.cap(workflow);
+        int points = Math.max(1, (int) Math.ceil(Math.max(0, tokens) / (double) per));
+        return Math.min(points, cap);
+    }
+
+    /** 已按 task-ZYT… 入账则返回已扣点数；没有 REVIEW_USAGE / SKILL_FEE 流水则 empty。 */
+    public Optional<Integer> settledPoints(long tenantId, long userId, String refId) {
+        if (refId == null || refId.isBlank()) {
+            return Optional.empty();
+        }
+        boolean hit = false;
+        int points = 0;
+        for (QuotaLedger row : quotaLedgerRepo.findByTenantIdAndUserIdAndRefIdOrderByIdDesc(tenantId, userId, refId)) {
+            String reason = row.getReason();
+            if (!"REVIEW_USAGE".equals(reason) && !"SKILL_FEE".equals(reason)) {
+                continue;
+            }
+            hit = true;
+            int delta = row.getDelta() == null ? 0 : row.getDelta();
+            if (delta < 0) {
+                points += -delta;
+            }
+        }
+        return hit ? Optional.of(points) : Optional.empty();
+    }
+
     @Transactional
     public int settleUsage(long tenantId, long userId, String workflow, int tokens, String refId, int byokAgents) {
         if (quotaLedgerRepo.existsByReasonAndRefId("REVIEW_USAGE", refId)
                 || quotaLedgerRepo.existsByReasonAndRefId("SKILL_FEE", refId)) {
             return 0;
         }
-        int points;
-        String reason;
-        if (byokAgents > 0) {
-            points = skillFee(workflow);
-            reason = "SKILL_FEE";
-        } else {
-            int per = Math.max(1, properties.getQuota().getTokensPerPoint());
-            int cap = workflowCatalog.cap(workflow);
-            points = Math.max(1, (int) Math.ceil(Math.max(0, tokens) / (double) per));
-            points = Math.min(points, cap);
-            reason = "REVIEW_USAGE";
-        }
+        int points = quotePoints(workflow, tokens, byokAgents);
+        String reason = byokAgents > 0 ? "SKILL_FEE" : "REVIEW_USAGE";
         QuotaAccount account = quotaAccountRepo.findByTenantIdAndUserId(tenantId, userId)
                 .orElseThrow(() -> ApiException.conflict("quota account missing"));
         points = Math.min(points, Math.max(0, account.getBalance()));

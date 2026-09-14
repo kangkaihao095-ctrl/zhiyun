@@ -128,6 +128,11 @@ public class ManuscriptController {
         return reviewService.trace(taskId);
     }
 
+    @GetMapping("/reviews/{taskId}/usage")
+    public Map<String, Object> usage(@PathVariable String taskId) {
+        return reviewService.usage(taskId);
+    }
+
     @GetMapping("/reviews/{taskId}/artifacts")
     public List<Object> artifacts(@PathVariable String taskId) {
         return reviewService.artifacts(taskId);

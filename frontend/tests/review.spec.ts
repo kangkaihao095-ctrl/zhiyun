@@ -19,7 +19,15 @@ import {
   pipelineNodes,
   formatDurationMs,
   readAnchor,
+  relatedPatch,
   revisionKindGroups,
+  humanRequiredIssues,
+  otherIssues,
+  pageSlice,
+  findingAnchorOf,
+  taskPanelCounts,
+  taskPanelOf,
+  TASK_PANEL_EMPTY,
   sevKey,
   showAgentTrace,
   showCheckpointPipeline,
@@ -100,6 +108,27 @@ describe('unwrap / collect', () => {
     expect(groups[0].items).toHaveLength(1)
     expect(groups[0].label).toBe('需要人工处理')
     expect(groups.every((g) => g.key !== 'MADE_UP_KIND')).toBe(true)
+    expect(humanRequiredIssues(issues, tasks)).toHaveLength(1)
+    expect(otherIssues(issues, tasks).map((i: { id: string }) => i.id)).not.toContain('iss-1')
+    expect(taskPanelOf('')).toBe('confirm')
+    expect(pageSlice(new Array(12).fill(0), 1).items).toHaveLength(5)
+    expect(TASK_PANEL_EMPTY.confirm).toBe('这次没有需你确认。')
+    expect(taskPanelCounts({
+      artifacts: [{}, {}],
+      humanIssues: [{ id: 'iss-h' }],
+      humanTasks: [{ issueId: 'iss-h' }],
+      restIssues: [],
+      evidence: [{ id: 'ev-1' }],
+      autoTasks: [{ issueId: 'iss-a' }],
+      autoPatches: [],
+      displayPatches: []
+    })).toEqual({
+      overview: 2,
+      confirm: 2,
+      issues: 1,
+      revise: 1,
+      manuscript: 0
+    })
     expect(issues[0].high).toBe(true)
     expect(issues[0].whyHigh).toContain('会改引用结论与作者责任')
     expect(issues[0].suggestFix).toContain('Verify or replace unverifiable citations')
@@ -257,6 +286,16 @@ describe('toPatch', () => {
   })
 })
 
+describe('relatedPatch', () => {
+  it('matches a task or issue to its patch by issueId', () => {
+    const patch = { key: 'rp-1', issueId: 'iss-h', original: 'old', proposed: 'new' }
+    expect(relatedPatch({ issueId: 'iss-h', instruction: '核对' }, [patch])).toEqual(patch)
+    expect(relatedPatch({ id: 'iss-h', summary: 'DOI' }, [patch])).toEqual(patch)
+    expect(relatedPatch({ issueId: 'iss-x', instruction: '无' }, [patch])).toBeNull()
+    expect(relatedPatch(patch, [patch])).toEqual(patch)
+  })
+})
+
 describe('locateNeedle', () => {
   it('finds every DOI occurrence', () => {
     const text = 'Cite 10.1000/xyz and again 10.1000/xyz in the list.'
@@ -285,6 +324,13 @@ describe('pickFindingNeedle', () => {
     expect(found).toMatchObject({ needle: '10.5555/paper', all: true })
   })
 
+  it('uses location.anchor when it appears in the manuscript', () => {
+    expect(pickFindingNeedle(
+      { summary: 'figure is blurry', location: { anchor: 'Figure 2 caption' } },
+      'See Figure 2 caption under the method.'
+    )).toMatchObject({ needle: 'Figure 2 caption' })
+  })
+
   it('skips section labels used as excerpts', () => {
     expect(looksLikeSectionLabel('Introduction')).toBe(true)
     expect(pickFindingNeedle(
@@ -307,6 +353,7 @@ describe('helpers', () => {
   it('does not treat String.prototype.anchor as a location field', () => {
     expect(readAnchor('hello')).toBe('')
     expect(readAnchor({ anchor: 'Figure 2 caption' })).toBe('Figure 2 caption')
+    expect(findingAnchorOf({ location: { anchor: '10.0000/ghost.doi' }, doi: '10.1/x', id: 'iss-h' })).toBe('10.0000/ghost.doi')
   })
 
   it('skips native-code junk in pickText', () => {
@@ -389,6 +436,31 @@ describe('checkpoint pipeline', () => {
     expect(merged[0].meta).toContain('checkpoint')
     expect(merged[0].meta).toContain('fence 2')
     expect(merged[0].checkpoint).toBe(true)
+    const versioned = mergeTraceNodes(nodes, {
+      nodes: [{
+        agent: 'CITATION_INTEGRITY',
+        durationMs: 10,
+        skillVersion: '1',
+        promptVersion: '1',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        endedAt: '2026-01-01T00:00:00.010Z'
+      }]
+    })
+    expect(versioned[0].meta).toContain('skill 1')
+    expect(versioned[0].meta).toContain('prompt 1')
+    expect(versioned[0].startedAt).toBe('2026-01-01T00:00:00.000Z')
+    const skipped = mergeTraceNodes(nodes, {
+      nodes: [{
+        agent: 'CITATION_INTEGRITY',
+        durationMs: 0,
+        tokens: 0,
+        fencingToken: 3,
+        checkpoint: true,
+        skipped: true
+      }]
+    })
+    expect(skipped[0].meta).toContain('checkpoint 跳过')
+    expect(skipped[0].skipped).toBe(true)
     expect(formatDurationMs(1200)).toBe('1.2 s')
     expect(fenceLabel({ fencingToken: 3 }, {
       fencingToken: 4,

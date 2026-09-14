@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +23,12 @@ public interface ReviewTaskRepo extends JpaRepository<ReviewTask, Long> {
     List<ReviewTask> findByManuscriptIdAndTenantIdOrderByIdDesc(Long manuscriptId, Long tenantId);
 
     List<ReviewTask> findByTenantIdAndUserIdOrderByIdDesc(Long tenantId, Long userId);
+
+    List<ReviewTask> findByTenantIdAndCreatedAtGreaterThanEqualOrderByIdDesc(Long tenantId, Instant createdAt);
+
+    List<ReviewTask> findByCreatedAtGreaterThanEqualOrderByIdDesc(Instant createdAt);
+
+    Optional<ReviewTask> findTopByOrderByCreatedAtAsc();
 
     Optional<ReviewTask> findByIdempotencyKey(String key);
 

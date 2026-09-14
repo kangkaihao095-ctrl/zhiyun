@@ -80,12 +80,24 @@ public class AuthService {
     }
 
     public Map<String, Object> login(String email, String password) {
+        return tokenPayload(authenticate(email, password), false);
+    }
+
+    public Map<String, Object> opsLogin(String email, String password) {
+        AppUser user = authenticate(email, password);
+        if (!properties.getOps().isOperator(user.getEmail())) {
+            throw ApiException.forbidden("只有管理员可以登录观测台");
+        }
+        return tokenPayload(user, true);
+    }
+
+    private AppUser authenticate(String email, String password) {
         AppUser user = userRepo.findByEmail(email.trim().toLowerCase())
                 .orElseThrow(() -> ApiException.unauthorized("invalid credentials"));
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw ApiException.unauthorized("邮箱或密码不对");
         }
-        return tokenPayload(user);
+        return user;
     }
 
     public Map<String, Object> me() {
@@ -104,6 +116,7 @@ public class AuthService {
         out.put("createdAt", user == null ? null : user.getCreatedAt());
         out.put("avatarUrl", avatarService.publicUrl(user));
         out.put("operator", properties.getOps().isOperator(user != null ? user.getEmail() : auth.email()));
+        out.put("ops", auth.ops());
         out.put("unreadInbox", inboxService.unreadCount());
         return out;
     }
@@ -134,13 +147,18 @@ public class AuthService {
     }
 
     private Map<String, Object> tokenPayload(AppUser user) {
-        AuthUser auth = new AuthUser(user.getId(), user.getTenantId(), user.getEmail(), user.getDisplayName());
-        return Map.of(
-                "token", jwtService.issue(auth),
-                "userId", user.getId(),
-                "tenantId", user.getTenantId(),
-                "email", user.getEmail(),
-                "displayName", user.getDisplayName()
-        );
+        return tokenPayload(user, false);
+    }
+
+    private Map<String, Object> tokenPayload(AppUser user, boolean ops) {
+        AuthUser auth = new AuthUser(user.getId(), user.getTenantId(), user.getEmail(), user.getDisplayName(), ops);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("token", jwtService.issue(auth));
+        out.put("userId", user.getId());
+        out.put("tenantId", user.getTenantId());
+        out.put("email", user.getEmail());
+        out.put("displayName", user.getDisplayName());
+        out.put("ops", ops);
+        return out;
     }
 }

@@ -16,7 +16,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DocumentParserFigureTest {
-    private final DocumentParser parser = new DocumentParser();
+    private final DocumentParser parser = new DocumentParser(new com.zhiyun.tool.DocxTool());
 
     @Test
     void inspectsMarkdownMetaWithoutCallingVisionTargets() {

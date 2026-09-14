@@ -46,5 +46,8 @@ describe('publicErrorMessage', () => {
     expect(publicErrorMessage('')).toBe('')
     expect(publicErrorCode('')).toBe('')
     expect(publicErrorMessage('something else entirely')).toBe(PUBLIC_ERROR_COPY.unknown)
+    expect(publicErrorMessage('stale fencing token rejected')).toBe(PUBLIC_ERROR_COPY.unknown)
+    expect(publicErrorCode('stale fencing token rejected')).toBe('fencing')
+    expect(publicErrorMessage('stale fencing token rejected')).not.toContain('fencing')
   })
 })

@@ -2,9 +2,9 @@
 
 对照可演示/可交付，不是互联网大厂 SLA。口径见 `md/智云_MultiAgent项目.md` 与 `DEV_TASK.md`。
 
-**结论（2026-09-08 只读审查）：有条件上线。**
+**结论（2026-09-14）：有条件上线。**
 
-主路径与安全代码已闭环。现在还不能点「可以上线」：任务/流水对外业务号与云笺订单日期过滤仍在收口；compose、当前进程重启、双账号 404 必须人在本机跑完。
+主路径与安全代码已闭环。任务对外号 `ZYT…`、流水对外号 `ZYL…`、云笺 `order_query` 日期过滤已在当前代码里。现在还不能点「可以上线」：compose、当前进程重启、双账号 404 必须人在本机跑完。
 
 看板：[zhiyun-go-live.canvas.tsx](/Users/lumengkang/.cursor/projects/Users-lumengkang-Desktop/canvases/zhiyun-go-live.canvas.tsx)（可在对话旁打开）。
 
@@ -12,10 +12,10 @@
 
 按顺序，不要跳。
 
-1. **等并行改动收口**  
-   云笺 `order_query` 日期过滤（今天/昨天/本周 → `from`/`to`，Java 参数化，模型不写 SQL）。  
+1. **对外业务号与云笺日期过滤（已落地）**  
+   云笺 `order_query`：今天/昨天/本周 → `from`/`to`，Java 参数化，模型不写 SQL。  
    任务对外号 `ZYT…`、流水对外号 `ZYL…`（内部仍是自增 PK；API `id` 为业务号，兼容旧数字主键）。  
-   未收口前不要重启去套用半成品 `V10__task_ledger_public_no.sql`，也不要另开分支改同一批实体。
+   Flyway `V10__task_ledger_public_no.sql` 已在仓库；不要再当半成品跳过。
 
 2. **拉起依赖**
 
@@ -85,7 +85,7 @@ curl -s -o /dev/null -w "%{http_code}\n" \
   http://127.0.0.1:8080/api/orders/$ORDER_ID
 ```
 
-四条都应打印 `404`。也可用种子账号 `demo@zhiyun.dev` / `demo123456` 走完整演示：上传 → 选刊 → 三条 Workflow → Accept/Reject → 导出 → mock 充值 → 云笺问额度（刷新即新会话）。
+四条都应打印 `404`。也可用演示账号 `demo@zhiyun.dev` / `demo123456` 走完整演示：上传 → 选刊 → 三条 Workflow → Accept/Reject → 导出 → mock 充值 → 云笺问额度（刷新即新会话）。学科实验室账号见 README「演示账号」。
 
 ## 已知债（演示口径可带）
 

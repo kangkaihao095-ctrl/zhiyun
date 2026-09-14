@@ -45,3 +45,7 @@ services:
       memlock:
         soft: -1
         hard: -1
+
+  # Prometheus 不作为智云观测台，不要在 compose 里启动。
+  # 产品交付面是 ops JWT 登录后的 /ops（MySQL review_task / agent_span / task_lease 窗口聚合；C 端 JWT 403）。
+  # 可选文件 prometheus.yml 仍可手动 scrape 宿主机 8080/actuator/prometheus，不进本 compose。

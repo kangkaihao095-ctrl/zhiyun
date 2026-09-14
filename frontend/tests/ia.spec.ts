@@ -98,6 +98,9 @@ function stubApi() {
     }
     if (p.startsWith('/inbox')) return { items: [], unreadCount: 2 }
     if (p === '/eval') throw new Error('settings must not call /eval')
+    if (p.startsWith('/observability')) {
+      return { caption: '运行观测，非 SLA。', kpis: {}, tasks: {}, recent: [], agents: [], errorCodes: [], trend: [], harness: {} }
+    }
     return {}
   })
 }
@@ -353,7 +356,9 @@ describe('Settings', () => {
       history: createMemoryHistory(),
       routes: [
         { path: '/account', component: Account },
-        { path: '/billing', component: Blank }
+        { path: '/billing', component: Blank },
+        { path: '/history', component: Blank },
+        { path: '/ops', component: Blank }
       ]
     })
     await router.push(start)
@@ -378,6 +383,8 @@ describe('Settings', () => {
     expect(wrapper.text()).toContain('账户资料')
     expect(wrapper.text()).toContain('模型配置')
     expect(wrapper.text()).toContain('额度流水')
+    expect(wrapper.text()).not.toContain('可观测')
+    expect(wrapper.text()).not.toContain('打开观测台')
     expect(wrapper.text()).not.toContain('公共知识运营')
     expect(wrapper.find('[data-testid="display-name-input"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('保存资料')
@@ -392,6 +399,8 @@ describe('Settings', () => {
   it('shows the knowledge entry only for operators', async () => {
     const { wrapper } = await mountAccount('/account', true)
     expect(wrapper.text()).toContain('公共知识运营')
+    expect(wrapper.text()).not.toContain('打开观测台')
+    expect(wrapper.find('[data-testid="obs-settings"]').exists()).toBe(false)
     wrapper.unmount()
     me.operator = false
   })
@@ -450,6 +459,14 @@ describe('Settings', () => {
     await wrapper.findAll('.settings-card')[2].trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/billing')
+    wrapper.unmount()
+  })
+
+  it('does not open the observability console from C-end settings', async () => {
+    const { wrapper, router } = await mountAccount('/account', true)
+    expect(wrapper.find('[data-testid="obs-settings"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('打开观测台')
+    expect(router.currentRoute.value.path).toBe('/account')
     wrapper.unmount()
   })
 })

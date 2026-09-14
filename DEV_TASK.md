@@ -147,7 +147,7 @@ WAITING_ACCEPT → DONE   (Reject：正式稿仍为原 version，候选保留可
 
 ## 4. API
 
-前缀 `/api`。除 `/auth/**`、`/actuator/health` 外需 `Authorization: Bearer <jwt>`。
+前缀 `/api`。除 `/auth/**`、`/actuator/health`、`/actuator/prometheus` 外需 `Authorization: Bearer <jwt>`。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -170,7 +170,10 @@ WAITING_ACCEPT → DONE   (Reject：正式稿仍为原 version，候选保留可
 | GET | `/manuscripts/{id}/versions/{versionNo}/inspect` | PDF 页规格 / 图表程序检查摘要；非 PDF 不给页预览 |
 | GET | `/manuscripts/{id}/versions/{versionNo}/file` | 打开或下载原件 |
 | POST | `/manuscripts/{id}/reviews` | `{workflow, targetVenue?}` 启动审校。刊名须在 VenueCatalog，只信 JWT 租户 |
+| GET | `/reviews` | 本租户审校列表（`q,page,size,status`） |
 | GET | `/reviews/{taskId}` | 任务状态 + checkpoint |
+| GET | `/reviews/{taskId}/trace` | 单任务 Agent Trace（状态 / 耗时 / token / checkpoint / fencing / 错误降级码）。本租户，他租户 404 |
+| GET | `/ops/observability` | ops JWT（`ops=true`）全平台窗口观测：空召回、span P50/P95、积压、窗口告警、跨租户计数。C 端 JWT 403，评估金标不进此接口。别名 `GET /observability` 同鉴权 |
 | GET | `/reviews/{taskId}/artifacts` | Artifact 列表 |
 | GET | `/reviews/{taskId}/report` | 当前任务 Artifact 汇总 Markdown（JSON：`filename` + `markdown`） |
 | POST | `/reviews/{taskId}/cancel` | 取消 PENDING/RUNNING；本租户；取消后 FAILED 并释放 lease。他租户 404 |
@@ -198,7 +201,7 @@ JWT claims：`sub=userId`, `tid=tenantId`。服务端只信 token，不信 body 
 | Planning | 无外部写工具，只读上游 Artifact |
 | Execution | DocumentRead, DocumentPatch, DocxTool |
 | Verification | ManuscriptRetrieval, AcademicSearch, MetadataVerifier, PDF/Figure, Diff |
-| Customer Service | KnowledgeRetrieval, TaskStatus, UsageQuery, OrderQuery, CitationResult（全部只读） |
+| Customer Service | KnowledgeRetrieval, TaskStatus, TaskList, PaperLookup, ManuscriptList, ManuscriptGet, UsageQuery, LedgerQuery, OrderQuery, PlanList, InboxUnread, AccountProfile, ModelConfig, CitationResult（全部只读） |
 
 Prompt / Skill 文件（`classpath:prompts/` 与 `classpath:skills/`，版本 `SkillRegistry.VERSION=1`）：
 
@@ -219,7 +222,7 @@ Prompt / Skill 文件（`classpath:prompts/` 与 `classpath:skills/`，版本 `S
 
 - 切分：按 Markdown/论文章节标题与段落语义切，不设死 size/overlap。
 - Embedding：百炼 `qwen3.7-text-embedding`，请求 `dimensions=1024`（官方 256–2560 可配）；dry-run / 无 Key 用确定性 hash 伪向量。失败回退 hash，不让启动崩溃。
-- Rerank：硅基流动 `BAAI/bge-reranker-v2-m3`（`POST /v1/rerank`）；无 Key 时保持召回原序截断到 Top-5。
+- Rerank：默认 `qwen3.7-text-rerank`（与 Embedding 同供应商，原生 text-rerank）；无 Key 时保持召回原序截断到 Top-5。
 - ES index `zhiyun_chunks`：`tenantId, researchProjectId, manuscriptId, documentVersion, section, chunkId, scope(PUBLIC|PRIVATE), content, embedding dense_vector dims=1024 cosine`。已有索引维度不一致时删除重建。
 - 查询：kNN + filter（tenant + manuscript + version + 可选 section）；召回 20，Rerank 后 Top-5。
 - dry-run 无 ES 时：MySQL `chunk_hash` + 内存/简单文本匹配兜底，保证单测可跑。
@@ -231,18 +234,26 @@ Prompt / Skill 文件（`classpath:prompts/` 与 `classpath:skills/`，版本 `S
 
 - Lease TTL 60s，每 20s 续期；`owner=hostname:pid:uuid`。
 - 授予 lease 时 `fencing_token += 1`，写入与状态流转带 token，CAS：`WHERE fencing_token <= :token` 且更新后 token 以库为准比较，旧 token 写入拒绝。
-- Checkpoint 粒度 = Agent 节点。`review_task.checkpoint_agent` 记录已完成的最后一个节点。
+- Checkpoint 粒度 = Agent 节点。`review_task.checkpoint_agent` 记录已完成的最后一个节点。重投时 `AgentTraceService.skip` 记 checkpoint 跳过。
+- Trace：`GET /reviews/{id}/trace` 每节点含 status / durationMs / tokens / fencingToken / checkpoint / skipped / skillVersion / promptVersion / errorCode。
+- 观测台：`GET /api/ops/observability` 需 ops JWT，聚合全平台 `review_task` / `agent_span` / `task_lease` 时间窗（空召回、P50/P95、积压、窗口告警、跨租户）。C 端 JWT 403。交付面是 `/ops`，不是 Prometheus / Grafana SLA 大屏，评估数字不当 SLO。
+- `/actuator/prometheus` 仍可放行（进程内 Micrometer）；compose **不起** Prometheus。可选 `prometheus.yml` 仅供手动 scrape，不是观测台。
 - Structured Output：Schema → Permission(ToolPolicy) → Business。失败重试 **1** 次，仍失败则任务 FAILED。
 - 幂等：`artifact` 唯一键 `(task_id, agent, artifact_type)`；重跑同一节点不插入第二份。
 - 故障注入：`zhiyun.fault.kill-after-agent` / `illegal-output-agent` / `timeout-agent`。
 
 ## 8. 客服 / MCP / SSE
 
-MCP tools（内部 Token `X-Zhiyun-Mcp-Token`，绑定会话 tenant/user，拒绝写）：
+MCP tools（内部 Token `X-Zhiyun-Mcp-Token`，绑定会话 tenant/user，拒绝写；与 `ToolPolicy` 云笺白名单一致）：
 
-- `task_status`：`{taskId}` → 状态、checkpoint、workflow
+- `knowledge_retrieval`：公共 FAQ / 套餐规则
+- `task_status`：`{taskId|manuscriptId}` → 状态、checkpoint、workflow
+- `task_list`：我的审校任务
+- `paper_lookup` / `manuscript_list` / `manuscript_get`：稿件只读
 - `usage_query`：当前用户可见额度
+- `ledger_query`：额度流水；`from`/`to` 由 Java 按 Asia/Shanghai 日历日过滤
 - `order_query`：`{orderId?, from?, to?, status?, limit?}` → 参数化过滤；有日期时返回 range + 命中列表
+- `plan_list` / `inbox_unread` / `account_profile` / `model_config`：套餐目录、未读站内信、账户与模型配置（无完整 Key）
 - `citation_result`：`{taskId}` → Citation Artifact 摘要
 
 SSE 事件：`event: token` data 为增量文本；`event: done` 结束。前端内存数组存 `{user, assistant}`，刷新即新会话，不写 localStorage。
@@ -259,7 +270,7 @@ ZHIYUN_MCP_TOKEN=dev-mcp-token
 JWT_SECRET=change-me-in-prod-please-32chars
 ```
 
-依赖：`docker compose up -d` 启动 MySQL 8、Redis、RabbitMQ、Elasticsearch 8。
+依赖：`docker compose up -d` 启动 MySQL 8、Redis、RabbitMQ、Elasticsearch 8。可观测交付面是 `/ops`。不要起 Prometheus / Grafana。可选 `prometheus.yml` 可手动 scrape `8080/actuator/prometheus`，不是观测台。
 
 ## 10. 用户模型覆盖 + 技能费
 

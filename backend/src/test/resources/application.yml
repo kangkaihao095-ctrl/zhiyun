@@ -24,6 +24,20 @@ liteflow:
   rule-source: liteflow/workflow.xml
   enable: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  defaults:
+    metrics:
+      export:
+        enabled: true
+
 zhiyun:
   jwt:
     secret: test-secret-please-use-32-chars!!

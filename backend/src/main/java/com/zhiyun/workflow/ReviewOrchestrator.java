@@ -23,13 +23,18 @@ import com.zhiyun.repo.ManuscriptRepo;
 import com.zhiyun.repo.ReviewTaskRepo;
 import com.zhiyun.security.AuthUser;
 import com.zhiyun.security.TenantContext;
+import com.zhiyun.tool.DocxTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ReviewOrchestrator {
@@ -46,12 +51,13 @@ public class ReviewOrchestrator {
     private final RagService ragService;
     private final BillingService billingService;
     private final InboxService inboxService;
+    private final DocxTool docxTool;
 
     public ReviewOrchestrator(FlowExecutor flowExecutor, ReviewTaskRepo reviewTaskRepo, ManuscriptRepo manuscriptRepo,
                               DocumentVersionRepo documentVersionRepo, LeaseService leaseService,
                               ArtifactStore artifactStore, ManuscriptService manuscriptService,
                               SemanticChunker chunker, RagService ragService, BillingService billingService,
-                              InboxService inboxService) {
+                              InboxService inboxService, DocxTool docxTool) {
         this.flowExecutor = flowExecutor;
         this.reviewTaskRepo = reviewTaskRepo;
         this.manuscriptRepo = manuscriptRepo;
@@ -63,6 +69,7 @@ public class ReviewOrchestrator {
         this.ragService = ragService;
         this.billingService = billingService;
         this.inboxService = inboxService;
+        this.docxTool = docxTool;
     }
 
     /**
@@ -71,9 +78,13 @@ public class ReviewOrchestrator {
      */
     public void execute(long taskId) {
         ReviewTask task = reviewTaskRepo.findById(taskId).orElseThrow();
+        String publicId = task.publicId() != null ? task.publicId() : String.valueOf(taskId);
+        MDC.put("taskId", publicId);
+        MDC.put("tenantId", String.valueOf(task.getTenantId()));
         // 已取消或已结束：不抢 lease、不结算，避免把 FAILED 改回 RUNNING/DONE
         if (!Codes.PENDING.equals(task.getStatus()) && !Codes.RUNNING.equals(task.getStatus())) {
-            log.info("review {} skip execute; status={}", taskId, task.getStatus());
+            log.info("review {} skip execute; status={}", publicId, task.getStatus());
+            MDC.remove("taskId");
             return;
         }
         TenantContext.set(new AuthUser(task.getUserId(), task.getTenantId(), "worker", "worker"));
@@ -86,11 +97,11 @@ public class ReviewOrchestrator {
             renewal = leaseService.startRenewal(taskId, owner);
             task = reviewTaskRepo.findById(taskId).orElseThrow();
             if (!Codes.PENDING.equals(task.getStatus()) && !Codes.RUNNING.equals(task.getStatus())) {
-                log.info("review {} cancelled before run; status={}", taskId, task.getStatus());
+                log.info("review {} cancelled before run; status={}", publicId, task.getStatus());
                 return;
             }
             if (reviewTaskRepo.markRunning(taskId, Codes.RUNNING) == 0) {
-                log.info("review {} not marked running (cancelled)", taskId);
+                log.info("review {} not marked running (cancelled)", publicId);
                 return;
             }
             task = reviewTaskRepo.findById(taskId).orElseThrow();
@@ -117,7 +128,7 @@ public class ReviewOrchestrator {
             finish(task, token);
             inboxService.notifyReview(reviewTaskRepo.findById(taskId).orElse(task));
         } catch (Exception e) {
-            log.error("review {} failed: {}", taskId, e.getMessage());
+            log.error("review {} failed: {}", publicId, e.getMessage());
             // 旧 token / 已取消：CAS 0 行，不把 FAILED 改回、不覆盖新 Worker
             if (leaseService.holds(taskId, token)) {
                 String message = PublicError.message(e.getMessage() == null ? "failed" : e.getMessage());
@@ -130,24 +141,30 @@ public class ReviewOrchestrator {
             int tokens = UsageMeter.close();
             if (started && leaseService.holds(taskId, token)) {
                 try {
-                    String ref = "task-" + (task.publicId() != null ? task.publicId() : taskId);
+                    String ref = "task-" + publicId;
                     int points = billingService.settleUsage(
                             task.getTenantId(), task.getUserId(), task.getWorkflow(), tokens, ref, byok);
-                    log.info("review {} settled {} tokens → {} points (byok={})", taskId, tokens, points, byok);
+                    log.info("review {} settled {} tokens → {} points (byok={})", publicId, tokens, points, byok);
                 } catch (Exception e) {
-                    log.warn("review {} settle failed: {}", taskId, e.getMessage());
+                    log.warn("review {} settle failed: {}", publicId, e.getMessage());
                 }
             }
             if (renewal != null) {
                 try {
                     renewal.close();
                 } catch (Exception e) {
-                    log.warn("lease heartbeat stop failed for {}: {}", taskId, e.getMessage());
+                    log.warn("lease heartbeat stop failed for {}: {}", publicId, e.getMessage());
                 }
             }
             leaseService.release(taskId, owner);
             TenantContext.clear();
+            MDC.remove("taskId");
         }
+    }
+
+    /** L2 终态：FULL_REVIEW 等采纳；其余无修订链直接 DONE。不是第四条 Workflow。 */
+    public static String terminalStatus(String workflow) {
+        return Codes.FULL_REVIEW.equals(workflow) ? Codes.WAITING_ACCEPT : Codes.DONE;
     }
 
     @Transactional
@@ -160,10 +177,9 @@ public class ReviewOrchestrator {
             // 已取消（FAILED）或已被其他路径结束，不要写成 DONE / WAITING_ACCEPT
             return;
         }
-        String next = Codes.DONE;
-        if (Codes.FULL_REVIEW.equals(fresh.getWorkflow())) {
+        String next = terminalStatus(fresh.getWorkflow());
+        if (Codes.WAITING_ACCEPT.equals(next)) {
             applyCandidate(fresh);
-            next = Codes.WAITING_ACCEPT;
         }
         reviewTaskRepo.casComplete(fresh.getId(), next, fresh.getCandidateVersion(), fencingToken);
     }
@@ -192,9 +208,37 @@ public class ReviewOrchestrator {
             text = PatchApplier.applyAll(text, specs).text();
         }
         Manuscript ms = manuscriptRepo.findById(task.getManuscriptId()).orElseThrow();
-        DocumentVersion candidate = manuscriptService.saveVersion(ms, next, Codes.CANDIDATE, source.getStoragePath(), text);
+        String storagePath = source.getStoragePath();
+        if (docxTool.supports(storagePath)) {
+            storagePath = writeCandidateDocx(source, next, text);
+        }
+        DocumentVersion candidate = manuscriptService.saveVersion(ms, next, Codes.CANDIDATE, storagePath, text);
         ragService.indexManuscript(ms.getTenantId(), ms.getProjectId(), ms.getId(), next,
                 chunker.split(text), "PRIVATE");
         task.setCandidateVersion(candidate.getVersionNo());
+    }
+
+    /** 候选稿走已有 DocxTool.writeCandidate，不覆盖正式稿路径。失败则回退原文路径。 */
+    private String writeCandidateDocx(DocumentVersion source, int versionNo, String text) {
+        try {
+            byte[] bytes = docxTool.writeCandidate(AgentIds.EXECUTION, text);
+            Path src = Path.of(source.getStoragePath());
+            String name = src.getFileName() == null ? "candidate.docx" : src.getFileName().toString();
+            if (!name.toLowerCase(Locale.ROOT).endsWith(".docx")) {
+                name = name + ".docx";
+            }
+            String stem = name.substring(0, name.length() - 5);
+            Path dest = src.getParent() == null
+                    ? Path.of(stem + "-v" + versionNo + ".docx")
+                    : src.getParent().resolve(stem + "-v" + versionNo + ".docx");
+            if (dest.getParent() != null) {
+                Files.createDirectories(dest.getParent());
+            }
+            Files.write(dest, bytes);
+            return dest.toString();
+        } catch (Exception e) {
+            log.warn("DocxTool.writeCandidate skipped: {}", e.getMessage());
+            return source.getStoragePath();
+        }
     }
 }

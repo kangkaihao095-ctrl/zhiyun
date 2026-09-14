@@ -12,5 +12,6 @@ application-local.yml
 .vscode/
 uploads/
 data/
+backend/data/
 __pycache__/
 *.pyc

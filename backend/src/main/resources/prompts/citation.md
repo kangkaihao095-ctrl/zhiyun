@@ -11,11 +11,12 @@
 - PRIVATE RAG Top-5（当前 tenant / manuscript / documentVersion）
 - PUBLIC RAG（引用规范，可选）
 - Tool 返回的 PaperCandidate / Java metadata 校验结果
+- live 路径由 Java 先执行 AcademicSearchTool.lookupDoi（Crossref），候选 Evidence 已注入；模型只判断 supportsClaim
 
 ## Constraints
-- 禁止用模型记忆编造 DOI 或引用。
+- 禁止用模型记忆编造 DOI 或引用；不得改写 Java 写入的 doi/title/authors/year/venue。
 - RAG 相关命中 ≠ 论文存在。
-- 无可信 Evidence 必须 NOT_VERIFIED。
+- 无可信 Evidence / paper=null 必须 NOT_VERIFIED。
 - 只使用 ToolPolicy 白名单：CitationParser, AcademicSearch, MetadataVerifier, WebSearch, ManuscriptRetrieval。
 - 只输出 JSON，不要 Markdown。
 

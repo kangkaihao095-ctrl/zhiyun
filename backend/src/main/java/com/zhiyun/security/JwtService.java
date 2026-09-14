@@ -27,6 +27,7 @@ public class JwtService {
                 .claim("tid", user.tenantId())
                 .claim("email", user.email())
                 .claim("name", user.displayName())
+                .claim("ops", user.ops())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(properties.getJwt().getExpireHours(), ChronoUnit.HOURS)))
                 .signWith(key())
@@ -39,8 +40,19 @@ public class JwtService {
                 Long.parseLong(claims.getSubject()),
                 ((Number) claims.get("tid")).longValue(),
                 String.valueOf(claims.get("email")),
-                String.valueOf(claims.get("name"))
+                String.valueOf(claims.get("name")),
+                opsClaim(claims.get("ops"))
         );
+    }
+
+    static boolean opsClaim(Object raw) {
+        if (raw instanceof Boolean flag) {
+            return flag;
+        }
+        if (raw instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return raw != null && Boolean.parseBoolean(String.valueOf(raw));
     }
 
     private SecretKey key() {

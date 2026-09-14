@@ -2,6 +2,7 @@ package com.zhiyun.llm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhiyun.config.ZhiyunProperties;
+import com.zhiyun.harness.HarnessMeters;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +30,15 @@ public class LlmGateway {
     private final ZhiyunProperties properties;
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final HarnessMeters harnessMeters;
     private final AtomicReference<String> lastError = new AtomicReference<>("");
 
-    public LlmGateway(ZhiyunProperties properties, RestClient restClient, ObjectMapper objectMapper) {
+    public LlmGateway(ZhiyunProperties properties, RestClient restClient, ObjectMapper objectMapper,
+                      HarnessMeters harnessMeters) {
         this.properties = properties;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
+        this.harnessMeters = harnessMeters;
     }
 
     @PostConstruct
@@ -120,6 +124,7 @@ public class LlmGateway {
         body.put("stream", true);
         body.put("enable_thinking", false);
         body.put("messages", messages);
+        return harnessMeters.timeLlm(() -> {
         try {
             String full = restClient.post()
                     .uri(endpoint("/chat/completions", null))
@@ -169,6 +174,7 @@ public class LlmGateway {
             log.warn("stream chat failed: {}", lastError.get());
             return null;
         }
+        });
     }
 
     private String streamDelta(String data) {
@@ -251,6 +257,7 @@ public class LlmGateway {
                 "enable_thinking", false,
                 "watermark", false
         ));
+        return harnessMeters.timeLlm(() -> {
         try {
             Map<?, ?> resp = post(dashscopeImageUrl(), body);
             Object code = resp.get("code");
@@ -264,6 +271,7 @@ public class LlmGateway {
             log.warn("image generation failed: {}", lastError.get());
             return null;
         }
+        });
     }
 
     public float[] embed(String text) {
@@ -289,6 +297,7 @@ public class LlmGateway {
     }
 
     private List<float[]> embedSlice(List<String> texts, int dims) {
+        return harnessMeters.timeLlm(() -> {
         try {
             Map<String, Object> body = new HashMap<>();
             body.put("model", properties.getLlm().getEmbeddingModel());
@@ -315,6 +324,7 @@ public class LlmGateway {
             log.warn("embedding fallback to hash: {}", lastError.get());
             return texts.stream().map(t -> hashVector(t, dims)).toList();
         }
+        });
     }
 
     /**
@@ -329,6 +339,7 @@ public class LlmGateway {
         if (properties.dryRun() || properties.getLlm().resolvedApiKey().isBlank()) {
             return fallbackOrder(documents.size(), n);
         }
+        return harnessMeters.timeLlm(() -> {
         try {
             Map<?, ?> resp = dashscope()
                     ? post(dashscopeRerankUrl(), dashscopeRerankBody(query, documents, n))
@@ -341,6 +352,7 @@ public class LlmGateway {
             log.warn("rerank fallback to original order: {}", lastError.get());
             return fallbackOrder(documents.size(), n);
         }
+        });
     }
 
     private Map<String, Object> siliconflowRerankBody(String query, List<String> documents, int topN) {
@@ -390,27 +402,29 @@ public class LlmGateway {
     }
 
     private String chatContent(Map<String, Object> body, UserLlmOverride override) {
-        Map<?, ?> resp = post(endpoint("/chat/completions", override), body, apiKey(override));
-        if (override == null) {
-            recordUsage(resp);
-        }
-        List<?> choices = (List<?>) resp.get("choices");
-        if (choices == null || choices.isEmpty()) {
-            return null;
-        }
-        Map<?, ?> choice = (Map<?, ?>) choices.get(0);
-        Map<?, ?> msg = (Map<?, ?>) choice.get("message");
-        if (msg == null) {
-            msg = (Map<?, ?>) choice.get("delta");
-        }
-        if (msg == null) {
-            return null;
-        }
-        String content = firstText(msg.get("content"));
-        if (content == null || content.isBlank()) {
-            content = firstText(msg.get("reasoning_content"));
-        }
-        return content == null || content.isBlank() ? null : content;
+        return harnessMeters.timeLlm(() -> {
+            Map<?, ?> resp = post(endpoint("/chat/completions", override), body, apiKey(override));
+            if (override == null) {
+                recordUsage(resp);
+            }
+            List<?> choices = (List<?>) resp.get("choices");
+            if (choices == null || choices.isEmpty()) {
+                return null;
+            }
+            Map<?, ?> choice = (Map<?, ?>) choices.get(0);
+            Map<?, ?> msg = (Map<?, ?>) choice.get("message");
+            if (msg == null) {
+                msg = (Map<?, ?>) choice.get("delta");
+            }
+            if (msg == null) {
+                return null;
+            }
+            String content = firstText(msg.get("content"));
+            if (content == null || content.isBlank()) {
+                content = firstText(msg.get("reasoning_content"));
+            }
+            return content == null || content.isBlank() ? null : content;
+        });
     }
 
     private static String firstText(Object content) {
@@ -526,16 +540,31 @@ public class LlmGateway {
     private void recordUsage(Map<?, ?> resp) {
         Object usage = resp.get("usage");
         if (usage instanceof Map<?, ?> map) {
+            int prompt = intVal(map.get("prompt_tokens"));
+            int completion = intVal(map.get("completion_tokens"));
             int total = intVal(map.get("total_tokens"));
             if (total <= 0) {
-                total = intVal(map.get("prompt_tokens")) + intVal(map.get("completion_tokens"));
+                total = prompt + completion;
             }
             UsageMeter.add(total);
+            if (prompt > 0 || completion > 0) {
+                harnessMeters.recordLlmTokens(prompt, completion);
+            } else {
+                harnessMeters.recordLlmTokens(total);
+            }
             return;
         }
         Object tokens = resp.get("tokens");
         if (tokens instanceof Map<?, ?> map) {
-            UsageMeter.add(intVal(map.get("input_tokens")) + intVal(map.get("output_tokens")));
+            int prompt = intVal(map.get("input_tokens"));
+            int completion = intVal(map.get("output_tokens"));
+            int total = prompt + completion;
+            UsageMeter.add(total);
+            if (prompt > 0 || completion > 0) {
+                harnessMeters.recordLlmTokens(prompt, completion);
+            } else {
+                harnessMeters.recordLlmTokens(total);
+            }
         }
     }
 

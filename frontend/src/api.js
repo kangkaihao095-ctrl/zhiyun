@@ -19,6 +19,11 @@ function httpFailureMessage(status, bodyMsg, statusText) {
   if (status === 401 || status === 403) return '请先登录'
   if (status === 404) return '找不到这份结果'
   if (status === 400) return '请求无效'
+  // Vite 在 8080 挂掉时仍返回 HTTP 500 Internal Server Error，不是 Failed to fetch。
+  if (status === 502 || status === 503 || status === 504
+      || (status >= 500 && /internal server error/i.test(statusText || ''))) {
+    return networkFailureMessage(new TypeError('Failed to fetch'))
+  }
   return statusText && !/failed to fetch/i.test(statusText)
     ? statusText
     : ('HTTP ' + status)

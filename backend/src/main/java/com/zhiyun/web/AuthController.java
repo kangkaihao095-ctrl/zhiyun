@@ -43,6 +43,11 @@ public class AuthController {
         return authService.login(req.email(), req.password());
     }
 
+    @PostMapping("/auth/ops/login")
+    public Map<String, Object> opsLogin(@RequestBody LoginReq req) {
+        return authService.opsLogin(req.email(), req.password());
+    }
+
     @GetMapping("/me")
     public Map<String, Object> me() {
         return authService.me();

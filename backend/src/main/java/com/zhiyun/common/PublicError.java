@@ -33,6 +33,7 @@ public final class PublicError {
             case "timeout" -> TIMEOUT;
             case "structured_output" -> STRUCTURED;
             case "network" -> NETWORK;
+            case "fencing" -> UNKNOWN;
             default -> UNKNOWN;
         };
     }
@@ -59,6 +60,9 @@ public final class PublicError {
         }
         if (NETWORK.equals(text)) {
             return "network";
+        }
+        if (text.toLowerCase(Locale.ROOT).contains("fencing")) {
+            return "fencing";
         }
         if (UNKNOWN.equals(text)) {
             return "unknown";

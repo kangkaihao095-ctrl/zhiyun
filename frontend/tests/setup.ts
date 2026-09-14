@@ -2,6 +2,9 @@ import { afterEach, vi } from 'vitest'
 
 afterEach(() => {
   sessionStorage.clear()
+  localStorage.clear()
+  document.documentElement.removeAttribute('data-theme')
+  document.documentElement.style.colorScheme = ''
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   vi.useRealTimers()

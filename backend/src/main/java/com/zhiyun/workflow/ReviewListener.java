@@ -4,6 +4,7 @@ import com.rabbitmq.client.Channel;
 import com.zhiyun.config.RabbitConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.context.annotation.Profile;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 审校任务消费者。不用 {@code @ConditionalOnBean(RabbitTemplate)}：用户 {@code @Component}
@@ -50,6 +52,8 @@ public class ReviewListener {
             return;
         }
         long taskId = ((Number) rawId).longValue();
+        MDC.put("traceId", UUID.randomUUID().toString());
+        MDC.put("taskId", String.valueOf(taskId));
         log.info("Review task {} picked up from queue", taskId);
         try {
             orchestrator.execute(taskId);
@@ -58,6 +62,8 @@ public class ReviewListener {
             log.error("review {} listener failed; nack requeue (lease/fencing will fence stale worker): {}",
                     taskId, e.getMessage());
             nack(channel, deliveryTag, true);
+        } finally {
+            MDC.clear();
         }
     }
 

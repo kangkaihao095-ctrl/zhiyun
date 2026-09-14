@@ -1,11 +1,13 @@
 package com.zhiyun;
 
+import com.zhiyun.domain.AgentSpan;
 import com.zhiyun.domain.Artifact;
 import com.zhiyun.domain.Codes;
 import com.zhiyun.domain.DocumentVersion;
 import com.zhiyun.domain.Plan;
 import com.zhiyun.domain.ReviewTask;
 import com.zhiyun.harness.LeaseService;
+import com.zhiyun.repo.AgentSpanRepo;
 import com.zhiyun.repo.ArtifactRepo;
 import com.zhiyun.repo.DocumentVersionRepo;
 import com.zhiyun.repo.OrderRepo;
@@ -42,6 +44,8 @@ class ReviewPipelineTest {
     OrderRepo orderRepo;
     @Autowired
     ReviewTaskRepo reviewTaskRepo;
+    @Autowired
+    AgentSpanRepo agentSpanRepo;
     @Autowired
     ArtifactRepo artifactRepo;
     @Autowired
@@ -122,6 +126,20 @@ class ReviewPipelineTest {
         assertThat(trace.get("nodes").get(0).get("checkpoint").asBoolean()).isTrue();
         assertThat(trace.get("fencingToken").asLong()).isGreaterThan(0L);
         assertThat(trace.get("nodes").get(0).has("fencingToken")).isTrue();
+        assertThat(trace.get("nodes").get(0).get("skillVersion").asText()).isEqualTo("1");
+        assertThat(trace.get("nodes").get(0).get("promptVersion").asText()).isEqualTo("1");
+        assertThat(trace.get("nodes").get(0).has("errorCode")).isTrue();
+        assertThat(trace.get("nodes").get(0).get("skipped").asBoolean()).isFalse();
+        assertThat(trace.get("nodes").get(0).has("startedAt")).isTrue();
+        assertThat(trace.get("nodes").get(0).has("endedAt")).isTrue();
+        assertThat(trace.get("nodes").get(0).has("durationMs")).isTrue();
+
+        int anonObs = mvc.perform(get("/api/ops/observability")).andReturn().getResponse().getStatus();
+        assertThat(anonObs).isIn(401, 403);
+        mvc.perform(get("/api/observability").header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/ops/observability").header("Authorization", bearer(token)))
+                .andExpect(status().isForbidden());
 
         JsonNode inbox = mapper.readTree(mvc.perform(get("/api/inbox").header("Authorization", bearer(token)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
@@ -129,8 +147,175 @@ class ReviewPipelineTest {
         assertThat(inbox.get("items").get(0).get("refId").asText()).isEqualTo("task-" + task.get("id").asText());
 
         String bob = register("trace-bob-" + System.nanoTime() + "@zhiyun.dev");
+        JsonNode usage = mapper.readTree(mvc.perform(get("/api/reviews/" + task.get("id").asText() + "/usage")
+                        .header("Authorization", bearer(token)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(usage.get("nodes").size()).isEqualTo(1);
+        assertThat(usage.get("nodes").get(0).get("name").asText()).isEqualTo("引用核验");
+        assertThat(usage.get("nodes").get(0).has("durationMs")).isTrue();
+        assertThat(usage.get("nodes").get(0).has("tokens")).isTrue();
+        assertThat(usage.get("nodes").get(0).has("quota")).isTrue();
+        assertThat(usage.has("fencingToken")).isFalse();
+        assertThat(usage.has("lease")).isFalse();
+        assertThat(usage.has("waterfall")).isFalse();
+        assertThat(usage.get("nodes").get(0).has("toolName")).isFalse();
+        assertThat(usage.get("nodes").get(0).has("skillVersion")).isFalse();
+        assertThat(usage.get("nodes").get(0).has("errorCode")).isFalse();
+        assertThat(usage.get("nodes").get(0).has("fencingToken")).isFalse();
+        assertThat(usage.get("settled").asBoolean()).isTrue();
+        ReviewTask stored = reviewTaskRepo.findByTaskNo(task.get("id").asText()).orElseThrow();
+        int ledgerPoints = quotaLedgerRepo.findByTenantIdAndUserIdAndRefIdOrderByIdDesc(
+                        stored.getTenantId(), stored.getUserId(), "task-" + task.get("id").asText())
+                .stream()
+                .filter(row -> "REVIEW_USAGE".equals(row.getReason()) || "SKILL_FEE".equals(row.getReason()))
+                .mapToInt(row -> row.getDelta() == null ? 0 : -row.getDelta())
+                .sum();
+        assertThat(usage.get("quota").asInt()).isEqualTo(ledgerPoints);
+
         mvc.perform(get("/api/reviews/" + task.get("id").asText() + "/trace").header("Authorization", bearer(bob)))
                 .andExpect(status().isNotFound());
+        mvc.perform(get("/api/reviews/" + task.get("id").asText() + "/usage").header("Authorization", bearer(bob)))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/ops/observability").header("Authorization", bearer(bob)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void opsDashboardIsGlobalAndRejectsClientJwt() throws Exception {
+        String demoClient = loginOrRegister("demo@zhiyun.dev");
+        JsonNode clientMe = mapper.readTree(mvc.perform(get("/api/me").header("Authorization", bearer(demoClient)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(clientMe.get("operator").asBoolean()).isTrue();
+        assertThat(clientMe.get("ops").asBoolean()).isFalse();
+        mvc.perform(get("/api/ops/observability").header("Authorization", bearer(demoClient)))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/observability").header("Authorization", bearer(demoClient)))
+                .andExpect(status().isForbidden());
+
+        String stranger = register("obs-stranger-" + System.nanoTime() + "@zhiyun.dev");
+        JsonNode strangerMe = mapper.readTree(mvc.perform(get("/api/me").header("Authorization", bearer(stranger)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        mvc.perform(get("/api/ops/observability").header("Authorization", bearer(stranger)))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/auth/ops/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + strangerMe.get("email").asText() + "\",\"password\":\"demo123456\"}"))
+                .andExpect(status().isForbidden());
+
+        ReviewTask demoTask = new ReviewTask();
+        demoTask.setTenantId(clientMe.get("tenantId").asLong());
+        demoTask.setUserId(clientMe.get("userId").asLong());
+        demoTask.setManuscriptId(1L);
+        demoTask.setWorkflow(Codes.CITATION_ONLY);
+        demoTask.setStatus(Codes.DONE);
+        demoTask.setSourceVersion(1);
+        demoTask.setFencingToken(1L);
+        demoTask.setIdempotencyKey("ops-demo-" + System.nanoTime());
+        demoTask = reviewTaskRepo.saveAndFlush(demoTask);
+        AgentSpan demoSpan = new AgentSpan();
+        demoSpan.setTenantId(demoTask.getTenantId());
+        demoSpan.setTaskId(demoTask.getId());
+        demoSpan.setAgent("CITATION_INTEGRITY");
+        demoSpan.setStatus(Codes.DONE);
+        demoSpan.setTokens(120);
+        demoSpan.setDurationMs(80L);
+        agentSpanRepo.saveAndFlush(demoSpan);
+
+        ReviewTask otherTask = new ReviewTask();
+        otherTask.setTenantId(strangerMe.get("tenantId").asLong());
+        otherTask.setUserId(strangerMe.get("userId").asLong());
+        otherTask.setManuscriptId(1L);
+        otherTask.setWorkflow(Codes.QUICK_REVIEW);
+        otherTask.setStatus(Codes.FAILED);
+        otherTask.setErrorMessage("timeout while waiting for model");
+        otherTask.setSourceVersion(1);
+        otherTask.setFencingToken(1L);
+        otherTask.setIdempotencyKey("ops-other-" + System.nanoTime());
+        otherTask = reviewTaskRepo.saveAndFlush(otherTask);
+        AgentSpan otherSpan = new AgentSpan();
+        otherSpan.setTenantId(otherTask.getTenantId());
+        otherSpan.setTaskId(otherTask.getId());
+        otherSpan.setAgent("CITATION_INTEGRITY");
+        otherSpan.setStatus(Codes.FAILED);
+        otherSpan.setTokens(40);
+        otherSpan.setDurationMs(30L);
+        otherSpan.setErrorCode("timeout");
+        agentSpanRepo.saveAndFlush(otherSpan);
+
+        String ops = mapper.readTree(mvc.perform(post("/api/auth/ops/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"demo@zhiyun.dev\",\"password\":\"demo123456\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).get("token").asText();
+        JsonNode opsMe = mapper.readTree(mvc.perform(get("/api/me").header("Authorization", bearer(ops)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(opsMe.get("ops").asBoolean()).isTrue();
+        assertThat(opsMe.get("operator").asBoolean()).isTrue();
+
+        JsonNode obs = mapper.readTree(mvc.perform(get("/api/ops/observability").param("range", "24h")
+                        .header("Authorization", bearer(ops)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(obs.get("caption").asText()).contains("非 SLA");
+        assertThat(obs.get("caption").asText()).doesNotContain("SLA 达标");
+        assertThat(obs.get("scope").asText()).isEqualTo("all");
+        assertThat(obs.get("window").get("range").asText()).isEqualTo("24h");
+        assertThat(obs.get("kpis").has("tasks")).isTrue();
+        assertThat(obs.get("kpis").has("successRatePct")).isTrue();
+        assertThat(obs.get("kpis").has("tokens")).isTrue();
+        assertThat(obs.get("kpis").has("leasesHeld")).isTrue();
+        assertThat(obs.get("kpis").has("checkpointSkipped")).isTrue();
+        assertThat(obs.get("trend").isArray()).isTrue();
+        assertThat(obs.get("trend").size()).isEqualTo(24);
+
+        JsonNode halfYear = mapper.readTree(mvc.perform(get("/api/ops/observability").param("range", "6m")
+                        .header("Authorization", bearer(ops)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(halfYear.get("window").get("range").asText()).isEqualTo("6m");
+        assertThat(halfYear.get("trend").size()).isEqualTo(6);
+        assertThat(halfYear.get("trend").get(0).get("bucket").asText()).matches("\\d{4}-\\d{2}");
+
+        JsonNode allTime = mapper.readTree(mvc.perform(get("/api/ops/observability").param("range", "all")
+                        .header("Authorization", bearer(ops)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(allTime.get("window").get("range").asText()).isEqualTo("all");
+        assertThat(allTime.get("trend").get(0).get("bucket").asText()).matches("\\d{4}-\\d{2}");
+        assertThat(obs.get("recent").isArray()).isTrue();
+        assertThat(obs.get("tenants").isArray()).isTrue();
+        assertThat(obs.get("tenants").size()).isGreaterThanOrEqualTo(2);
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (JsonNode row : obs.get("tenants")) {
+            seen.add(row.get("tenantId").asLong());
+            assertThat(row.has("tasks")).isTrue();
+            assertThat(row.has("successRatePct")).isTrue();
+            assertThat(row.has("failed")).isTrue();
+            assertThat(row.has("leasesHeld")).isTrue();
+            assertThat(row.has("tokens")).isTrue();
+            assertThat(row.has("errorCodes")).isTrue();
+        }
+        assertThat(seen).contains(clientMe.get("tenantId").asLong(), strangerMe.get("tenantId").asLong());
+        assertThat(obs.get("kpis").get("tokens").asInt()).isGreaterThanOrEqualTo(160);
+        assertThat(obs.get("llm").has("avgDurationMs")).isTrue();
+        assertThat(obs.get("llm").get("caption").asText()).contains("无 TTFT");
+        assertThat(obs.has("meters")).isFalse();
+        assertThat(obs.get("tools").has("failed")).isTrue();
+        assertThat(obs.get("harness").has("fencingRejected")).isTrue();
+        assertThat(obs.get("rag").has("hasDuration")).isTrue();
+
+        JsonNode drilled = mapper.readTree(mvc.perform(get("/api/ops/observability")
+                        .param("range", "24h")
+                        .param("tenantId", strangerMe.get("tenantId").asText())
+                        .header("Authorization", bearer(ops)))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(drilled.get("scope").asText()).isEqualTo("tenant");
+        assertThat(drilled.get("tenantId").asLong()).isEqualTo(strangerMe.get("tenantId").asLong());
+        assertThat(drilled.get("kpis").get("failed").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(drilled.get("tenants").size()).isGreaterThanOrEqualTo(2);
     }
 
     @Test
@@ -810,6 +995,16 @@ class ReviewPipelineTest {
         plan.setPriceCents(0);
         plan.setDescription("test");
         planRepo.save(plan);
+    }
+
+    private String loginOrRegister(String email) throws Exception {
+        String body = "{\"email\":\"" + email + "\",\"password\":\"demo123456\",\"displayName\":\"Demo\"}";
+        var login = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andReturn();
+        if (login.getResponse().getStatus() == 200) {
+            return mapper.readTree(login.getResponse().getContentAsString()).get("token").asText();
+        }
+        return register(email);
     }
 
     private String register(String email) throws Exception {
