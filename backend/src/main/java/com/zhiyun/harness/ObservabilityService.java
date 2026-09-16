@@ -43,7 +43,7 @@ import java.util.Set;
 public class ObservabilityService {
     static final int MAX_WINDOW = 8000;
     static final int RECENT = 20;
-    static final String CAPTION = "运行观测，非 SLA。评估集 Recall 与要点命中不在此页。无 TTFT。";
+    static final String CAPTION = "运行观测，非 SLA。评估集 Recall 与要点命中不在此页。首 token 来自窗口 span，不是 SLA。";
     static final String ALERT_CAPTION = "窗口规则，不是 SLA、不是 pager。";
 
     private final ReviewTaskRepo reviewTaskRepo;
@@ -162,6 +162,7 @@ public class ObservabilityService {
         int ragPublicEmpty = 0;
         int knnEmpty = 0;
         DurAgg llmDur = new DurAgg();
+        DurAgg firstTokenDur = new DurAgg();
         DurAgg ragPrivateDur = new DurAgg();
         DurAgg ragPublicDur = new DurAgg();
         DurAgg knnDur = new DurAgg();
@@ -176,6 +177,7 @@ public class ObservabilityService {
                 if (row.getDurationMs() != null) {
                     agg.durationMs += row.getDurationMs();
                 }
+                absorbFirstToken(agg, row);
                 if (Boolean.TRUE.equals(row.getSkipped())) {
                     agg.skipped++;
                 }
@@ -190,6 +192,9 @@ public class ObservabilityService {
                     checkpointSkipped++;
                 } else if (row.getDurationMs() != null) {
                     llmDur.add(row.getDurationMs());
+                }
+                if (!Boolean.TRUE.equals(row.getSkipped())) {
+                    firstTokenDur.addIfPresent(row.getFirstTokenMs());
                 }
                 if (Codes.FAILED.equals(row.getStatus())) {
                     spanFailed++;
@@ -222,6 +227,10 @@ public class ObservabilityService {
                 if (row.getDurationMs() != null) {
                     roll.durationMs += row.getDurationMs();
                     roll.durationN++;
+                }
+                if (row.getFirstTokenMs() != null && row.getFirstTokenMs() >= 0) {
+                    roll.firstTokenMs += row.getFirstTokenMs();
+                    roll.firstTokenN++;
                 }
                 if (row.getTokens() != null) {
                     roll.tokens += row.getTokens();
@@ -331,6 +340,7 @@ public class ObservabilityService {
             row.put("tokens", roll.tokens);
             row.put("skipped", roll.skipped);
             row.put("avgDurationMs", roll.durationN == 0 ? 0L : roll.durationMs / roll.durationN);
+            row.put("avgFirstTokenMs", roll.firstTokenN == 0 ? null : roll.firstTokenMs / roll.firstTokenN);
             row.put("successRatePct", roll.runs <= 0 ? 0 : (int) Math.round(roll.succeeded * 100.0 / roll.runs));
             row.put("errorCodes", errorRows(roll.errorCodes));
             agentRows.add(row);
@@ -378,6 +388,9 @@ public class ObservabilityService {
         kpis.put("failedTenants", failedTenants);
         kpis.put("p50Ms", taskP50);
         kpis.put("p95Ms", taskP95);
+        kpis.put("firstTokenAvgMs", firstTokenDur.avg());
+        kpis.put("firstTokenP50Ms", percentile(firstTokenDur.values, 0.50));
+        kpis.put("firstTokenP95Ms", percentile(firstTokenDur.values, 0.95));
         kpis.put("tokenDeltaPct", tokenDeltaPct);
 
         int leasesExpired = 0;
@@ -449,7 +462,7 @@ public class ObservabilityService {
         out.put("recent", recent);
         out.put("tenants", tenantRows);
         out.put("tools", toolBoard(toolsByTool, toolsByAgent, toolFailed, spanFailed));
-        out.put("llm", llmBoard(tokenTotal, structuredFail, agents, llmDur, tokenDeltaPct));
+        out.put("llm", llmBoard(tokenTotal, structuredFail, agents, llmDur, firstTokenDur, tokenDeltaPct));
         out.put("citation", citationBoard(lookupDoi, lookupOk, notVerified, inventedDropped));
         out.put("rag", ragBoard(ragPrivate, ragPublic, knnCalls, ragPrivateEmpty, ragPublicEmpty, knnEmpty,
                 ragPrivateDur, ragPublicDur, knnDur));
@@ -769,6 +782,8 @@ public class ObservabilityService {
         long agentMs = agg == null ? 0L : agg.durationMs;
         row.put("durationMs", wall > 0 ? wall : agentMs);
         row.put("agentDurationMs", agentMs);
+        row.put("firstTokenMs", agg == null ? null : agg.firstTokenMs);
+        row.put("firstTokenAt", agg == null ? null : agg.firstTokenAt);
         row.put("tokens", agg == null ? 0 : agg.tokens);
         row.put("skipped", agg == null ? 0 : agg.skipped);
         row.put("errorCode", Codes.FAILED.equals(task.getStatus()) ? PublicError.code(task.getErrorMessage()) : "");
@@ -852,13 +867,13 @@ public class ObservabilityService {
     }
 
     private Map<String, Object> llmBoard(int tokenTotal, int structuredFail, Map<String, AgentRollup> agents,
-                                        DurAgg duration, Integer tokenDeltaPct) {
+                                        DurAgg duration, DurAgg firstToken, Integer tokenDeltaPct) {
         int runs = 0;
         for (AgentRollup roll : agents.values()) {
             runs += roll.runs - roll.skipped;
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("caption", "窗口内 Agent span。无 TTFT。prompt/completion 窗口无拆分则为 0。");
+        out.put("caption", "窗口内 Agent span。首 token：流式为首个 delta，非流式为完整响应到达。不是 SLA。prompt/completion 窗口无拆分则为 0。");
         out.put("calls", runs);
         out.put("tokens", tokenTotal);
         out.put("promptTokens", 0);
@@ -867,6 +882,16 @@ public class ObservabilityService {
         out.put("tokenDeltaPct", tokenDeltaPct);
         putDuration(out, duration);
         putPercentile(out, duration);
+        out.put("firstTokenSamples", firstToken.samples);
+        if (firstToken.samples <= 0) {
+            out.put("firstTokenAvgMs", null);
+            out.put("firstTokenP50Ms", null);
+            out.put("firstTokenP95Ms", null);
+        } else {
+            out.put("firstTokenAvgMs", firstToken.avg());
+            out.put("firstTokenP50Ms", percentile(firstToken.values, 0.50));
+            out.put("firstTokenP95Ms", percentile(firstToken.values, 0.95));
+        }
         return out;
     }
 
@@ -950,6 +975,18 @@ public class ObservabilityService {
         }
     }
 
+    private static void absorbFirstToken(AgentSpanAgg agg, AgentSpan row) {
+        if (row.getFirstTokenAt() == null && row.getFirstTokenMs() == null) {
+            return;
+        }
+        Instant at = row.getFirstTokenAt();
+        Long ms = row.getFirstTokenMs();
+        if (agg.firstTokenAt == null || (at != null && at.isBefore(agg.firstTokenAt))) {
+            agg.firstTokenAt = at;
+            agg.firstTokenMs = ms;
+        }
+    }
+
     private void absorbCitation(AgentSpanAgg agg, String raw) {
         for (JsonNode call : toolCallNodes(raw)) {
             agg.lookupDoi += call.path("lookupDoi").asInt(0);
@@ -972,6 +1009,8 @@ public class ObservabilityService {
     private static final class AgentSpanAgg {
         int tokens;
         long durationMs;
+        Instant firstTokenAt;
+        Long firstTokenMs;
         int skipped;
         int lookupDoi;
         int notVerified;
@@ -986,6 +1025,8 @@ public class ObservabilityService {
         int tokens;
         long durationMs;
         int durationN;
+        long firstTokenMs;
+        int firstTokenN;
         final Map<String, Integer> errorCodes = new LinkedHashMap<>();
     }
 
@@ -1011,6 +1052,14 @@ public class ObservabilityService {
 
         void add(long dur) {
             if (dur > 0) {
+                durationMs += dur;
+                samples++;
+                values.add(dur);
+            }
+        }
+
+        void addIfPresent(Long dur) {
+            if (dur != null && dur >= 0) {
                 durationMs += dur;
                 samples++;
                 values.add(dur);

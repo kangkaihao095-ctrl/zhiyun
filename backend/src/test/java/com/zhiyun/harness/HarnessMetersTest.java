@@ -34,6 +34,7 @@ class HarnessMetersTest {
     void customMetersAreRegisteredAndMoveOnLeaseRetrievalAndLlm() {
         assertThat(meterRegistry.find(HarnessMeters.LLM_CALLS).counter()).isNotNull();
         assertThat(meterRegistry.find(HarnessMeters.LLM_DURATION).timer()).isNotNull();
+        assertThat(meterRegistry.find(HarnessMeters.LLM_TTFT).timer()).isNotNull();
         assertThat(meterRegistry.find(HarnessMeters.LLM_TOKENS).counter()).isNotNull();
         assertThat(meterRegistry.find(HarnessMeters.LEASE_HELD).gauge()).isNotNull();
         assertThat(meterRegistry.find(HarnessMeters.LEASE_EXPIRED).counter()).isNotNull();
@@ -81,6 +82,13 @@ class HarnessMetersTest {
 
         harnessMeters.timeLlm(() -> "ok");
         assertThat(meterRegistry.find(HarnessMeters.LLM_DURATION).timer().count()).isGreaterThan(0);
+        harnessMeters.recordFirstToken(java.time.Instant.parse("2026-09-16T03:00:00.120Z"), 120);
+        harnessMeters.recordFirstToken(null, 12);
+        harnessMeters.recordFirstToken(java.time.Instant.parse("2026-09-16T03:00:00.120Z"), -1);
+        assertThat(meterRegistry.find(HarnessMeters.LLM_TTFT).timer().count()).isEqualTo(1);
+        assertThat(harnessMeters.snapshot()).containsKeys("ttftCount", "lastFirstTokenAt", "lastFirstTokenMs");
+        assertThat(harnessMeters.snapshot().get("caption").toString()).contains("首 token");
+        assertThat(harnessMeters.snapshot().get("caption").toString()).doesNotContain("无 TTFT");
         harnessMeters.recordKnn(1_000_000L);
         harnessMeters.recordRetrievalPublic(2_000_000L);
         assertThat(meterRegistry.find(HarnessMeters.RAG_KNN_DURATION).timer().count()).isGreaterThan(0);

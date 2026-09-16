@@ -10,6 +10,8 @@ export type WaterfallInput = {
   startedAt?: string | number | Date | null
   endedAt?: string | number | Date | null
   durationMs?: number | string | null
+  firstTokenAt?: string | number | Date | null
+  firstTokenMs?: number | string | null
   tokens?: number | string | null
   checkpoint?: boolean
   skipped?: boolean
@@ -33,6 +35,9 @@ export type WaterfallBar = {
   durationMs: number
   leftPct: number
   widthPct: number
+  firstTokenMs: number | null
+  firstTokenAt: string
+  firstTokenPct: number
   tokens: number | null
   checkpoint: boolean
   skipped: boolean
@@ -142,6 +147,14 @@ export function layoutWaterfall(spans: WaterfallInput[], nowMs = Date.now()): Wa
     }
     cursor = Math.max(cursor, startMs + durationMs)
     const agent = String(span.agent || span.id || '')
+    const storedTtft = readDuration(span.firstTokenMs)
+    const tokenAt = parseSpanTime(span.firstTokenAt)
+    let firstTokenOffset: number | null = null
+    if (tokenAt != null && row.start != null) {
+      firstTokenOffset = Math.max(0, tokenAt - row.start)
+    } else if (storedTtft != null) {
+      firstTokenOffset = storedTtft
+    }
     bars.push({
       agent,
       name: String(span.name || agent),
@@ -152,6 +165,9 @@ export function layoutWaterfall(spans: WaterfallInput[], nowMs = Date.now()): Wa
       durationMs,
       leftPct: 0,
       widthPct: 0,
+      firstTokenMs: storedTtft,
+      firstTokenAt: span.firstTokenAt == null ? '' : String(span.firstTokenAt),
+      firstTokenPct: firstTokenOffset == null ? 0 : pctOf(firstTokenOffset, durationMs),
       tokens: readDuration(span.tokens),
       checkpoint: Boolean(span.checkpoint),
       skipped: Boolean(span.skipped),

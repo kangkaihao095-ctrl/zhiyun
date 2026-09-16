@@ -2369,6 +2369,7 @@ button.order-main {
 }
 .ops-trace-wf { color: var(--ops-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ops-trace-ms { font-variant-numeric: tabular-nums; color: var(--ops-product); }
+.ops-trace-ttft { font-variant-numeric: tabular-nums; color: var(--ops-muted); font-size: 11px; }
 .ops-code { color: var(--ops-red); font-size: 11px; }
 .ops-dot-status {
   width: 7px;

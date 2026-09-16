@@ -32,6 +32,12 @@ public class AgentSpan {
     private Instant endedAt;
     @Column(name = "duration_ms")
     private Long durationMs;
+    /** LLM 第一个有效 token 的墙钟时间。失败或无 token 为空。 */
+    @Column(name = "first_token_at")
+    private Instant firstTokenAt;
+    /** 相对该次 LLM 请求开始的首 token 耗时（ms）。流式为首个 delta，非流式为完整响应到达。 */
+    @Column(name = "first_token_ms")
+    private Long firstTokenMs;
     private Integer tokens;
     @Column(name = "fencing_token")
     private Long fencingToken;

@@ -570,6 +570,8 @@ export function recentDurationRows(recent) {
     statusLabel: statusLabel(row?.status),
     durationMs: Number(row?.durationMs || 0),
     durationText: formatDurationMs(row?.durationMs) || '—',
+    firstTokenMs: row?.firstTokenMs == null || row?.firstTokenMs === '' ? null : Number(row.firstTokenMs),
+    firstTokenText: row?.firstTokenMs == null || row?.firstTokenMs === '' ? '' : ('首 token ' + (formatDurationMs(row.firstTokenMs) || '—')),
     tokens: Number(row?.tokens || 0),
     errorCode: String(row?.errorCode || ''),
     errorLabel: row?.errorCode ? errorCodeLabel(row.errorCode) : '',

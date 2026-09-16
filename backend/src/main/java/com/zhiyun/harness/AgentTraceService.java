@@ -56,6 +56,8 @@ public class AgentTraceService {
         span.setStartedAt(Instant.now());
         span.setEndedAt(null);
         span.setDurationMs(null);
+        span.setFirstTokenAt(null);
+        span.setFirstTokenMs(null);
         span.setTokens(null);
         span.setCheckpoint(false);
         span.setSkipped(false);
@@ -75,8 +77,10 @@ public class AgentTraceService {
             Instant now = Instant.now();
             span.setStartedAt(now);
             span.setEndedAt(now);
-            span.setDurationMs(0L);
-            span.setTokens(0);
+        span.setDurationMs(0L);
+        span.setTokens(0);
+        span.setFirstTokenAt(null);
+        span.setFirstTokenMs(null);
         }
         span.setStatus(Codes.DONE);
         span.setSkipped(true);
@@ -100,6 +104,7 @@ public class AgentTraceService {
         span.setEndedAt(end);
         span.setDurationMs(Math.max(0, Duration.between(start, end).toMillis()));
         span.setTokens(Math.max(0, tokens));
+        applyFirstToken(span);
         span.setCheckpoint(true);
         span.setSkipped(Boolean.TRUE.equals(span.getSkipped()));
         span.setErrorMessage(null);
@@ -123,6 +128,7 @@ public class AgentTraceService {
         span.setDurationMs(Math.max(0, Duration.between(start, end).toMillis()));
         span.setCheckpoint(false);
         span.setSkipped(false);
+        applyFirstToken(span);
         String raw = error == null ? "" : error;
         span.setErrorMessage(clip(PublicError.message(raw)));
         span.setErrorCode(PublicError.code(raw));
@@ -153,6 +159,8 @@ public class AgentTraceService {
                 row.put("startedAt", span.getStartedAt());
                 row.put("endedAt", span.getEndedAt());
                 row.put("durationMs", span.getDurationMs());
+                row.put("firstTokenAt", span.getFirstTokenAt());
+                row.put("firstTokenMs", span.getFirstTokenMs());
                 row.put("tokens", span.getTokens());
                 row.put("fencingToken", span.getFencingToken());
                 row.put("checkpoint", agent.equals(checkpoint) || Boolean.TRUE.equals(span.getCheckpoint()));
@@ -186,6 +194,17 @@ public class AgentTraceService {
         });
         out.put("nodes", nodes);
         return out;
+    }
+
+    private void applyFirstToken(AgentSpan span) {
+        FirstTokenRecorder.Sample sample = FirstTokenRecorder.snapshot();
+        if (sample == null) {
+            span.setFirstTokenAt(null);
+            span.setFirstTokenMs(null);
+            return;
+        }
+        span.setFirstTokenAt(sample.firstTokenAt());
+        span.setFirstTokenMs(sample.firstTokenMs());
     }
 
     private void applyIdentity(AgentSpan span, ReviewTask task, String agent, long fencingToken) {
@@ -228,6 +247,8 @@ public class AgentTraceService {
         row.put("startedAt", produced);
         row.put("endedAt", produced);
         row.put("durationMs", null);
+        row.put("firstTokenAt", null);
+        row.put("firstTokenMs", null);
         row.put("tokens", null);
         row.put("fencingToken", hit != null ? hit.getFencingToken() : (lease != null && Codes.RUNNING.equals(status) ? lease.getFencingToken() : task.getFencingToken()));
         row.put("checkpoint", agent.equals(task.getCheckpointAgent()));

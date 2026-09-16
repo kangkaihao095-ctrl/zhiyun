@@ -171,7 +171,7 @@
       </div>
 
       <div class="ops-section-title"><span class="ops-bar ops-bar--info" />Agent / 工具</div>
-      <p class="ops-section-desc">窗口内 span 与工具调用。没有调用就是 0，不编 TTFT。运行观测，非 SLA。</p>
+      <p class="ops-section-desc">窗口内 span 与工具调用。没有调用就是 0，不编假的首 token。运行观测，非 SLA。</p>
 
       <div class="ops-split">
         <section class="ops-panel" data-testid="ops-tools">
@@ -243,7 +243,7 @@
       <div class="ops-quad" data-testid="ops-runtime">
         <section class="ops-panel ops-panel--kpis" data-testid="ops-llm">
           <div class="ops-panel-title"><span class="ops-dot" />LLM</div>
-          <p class="ops-panel-desc">窗口 span · 无 TTFT · 分位来自窗口样本</p>
+          <p class="ops-panel-desc">窗口 span · 首 token 分位 · 非 SLA</p>
           <div class="ops-mini-kpis ops-mini-kpis--8">
             <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ fmt(llm.calls) }}</b><span>calls</span></div></div>
             <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ fmt(llm.tokens) }}</b><span>tokens</span></div></div>
@@ -253,6 +253,10 @@
             <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ durationKpi(llm.avgDurationMs) }}</b><span>窗口耗时</span></div></div>
             <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ durationKpi(llm.p50Ms) }}</b><span>P50</span></div></div>
             <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ durationKpi(llm.p95Ms) }}</b><span>P95</span></div></div>
+          </div>
+          <div class="ops-mini-kpis ops-mini-kpis--2" data-testid="ops-llm-ttft">
+            <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ durationKpi(llm.firstTokenP50Ms) }}</b><span>首 token P50</span></div></div>
+            <div class="ops-mini-kpi"><div class="ops-mini-kpi__body"><b>{{ durationKpi(llm.firstTokenP95Ms) }}</b><span>首 token P95</span></div></div>
           </div>
         </section>
         <section class="ops-panel ops-panel--kpis" data-testid="ops-citation">
@@ -354,6 +358,7 @@
                 <span class="ops-trace-id">{{ row.taskId }}</span>
                 <span class="ops-trace-wf">{{ row.tenantName ? row.tenantName + ' · ' + row.workflowName : row.workflowName }}</span>
                 <span class="ops-trace-ms">{{ row.durationText }}</span>
+                <span v-if="row.firstTokenText" class="ops-trace-ttft">{{ row.firstTokenText }}</span>
                 <span v-if="row.errorLabel" class="ops-code">{{ row.errorLabel }}</span>
               </button>
             </div>
@@ -372,7 +377,7 @@
         本页是运行观测，非 SLA。时间窗内统计任务创建 / 完成 / 失败；完成占比 =（已完成 + 待确认）÷ 任务数；
         lease 为未过期执行租约；checkpoint 跳过为从检查点续跑跳过的节点；
         token 与耗时来自 Agent span；失败码按窗口聚合；Trace 为相对任务开始的瀑布。
-        评估集 Recall 与要点命中不在此页。无 TTFT。工具调用来自 agent_span.tool_calls，按工具计数。
+        评估集 Recall 与要点命中不在此页。首 token 为流式首个 delta / 非流式完整响应到达，不是 SLA。工具调用来自 agent_span.tool_calls，按工具计数。
         LLM 窗口耗时、P50/P95、RAG 耗时与空召回、工具失败、积压均来自同一套窗口表。
         告警条是窗口规则，不是 SLA、不是 pager。
       </footer>
@@ -537,6 +542,7 @@ function toneOf(key) {
 function nodeMeta(node) {
   return [
     formatDurationMs(node.durationMs),
+    node.firstTokenMs != null && node.firstTokenMs !== '' ? `首 token ${formatDurationMs(node.firstTokenMs)}` : '',
     node.tokens != null && node.tokens !== '' ? `${node.tokens} token` : '',
     node.toolName || '',
     node.checkpoint ? 'checkpoint' : '',

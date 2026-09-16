@@ -40,6 +40,12 @@
           :data-st="bar.state || spanState(bar.status)"
           :style="barStyle(bar, index)"
         >
+          <i
+            v-if="bar.firstTokenMs != null && bar.firstTokenPct > 0"
+            class="ops-wf-ttft"
+            :style="{ left: bar.firstTokenPct + '%' }"
+            data-testid="ops-wf-ttft"
+          />
           <em>{{ durationOf(bar) }}</em>
         </span>
       </div>
@@ -61,6 +67,7 @@
     >
       <div><span>Agent</span><b>{{ tip.agent }}</b></div>
       <div><span>耗时</span><b>{{ tip.duration }}</b></div>
+      <div><span>首 token</span><b>{{ tip.firstToken }}</b></div>
       <div><span>token</span><b>{{ tip.tokens }}</b></div>
       <div><span>tool</span><b>{{ tip.tools }}</b></div>
       <div><span>errorCode</span><b>{{ tip.errorCode }}</b></div>
@@ -93,6 +100,7 @@ const selectedFields = computed(() => {
     { key: 'agent', value: bar.agent },
     { key: 'status', value: bar.status || bar.state },
     { key: 'duration', value: durationOf(bar) },
+    { key: 'firstToken', value: firstTokenOf(bar) },
     { key: 'tokens', value: bar.tokens != null ? String(bar.tokens) : '' },
     { key: 'tools', value: String(toolCountOf(bar)) },
     { key: 'tool', value: bar.toolName },
@@ -110,6 +118,11 @@ function durationOf(bar) {
   return formatDurationMs(bar.durationMs) || '0ms'
 }
 
+function firstTokenOf(bar) {
+  if (bar.firstTokenMs == null || bar.firstTokenMs === '') return ''
+  return formatDurationMs(bar.firstTokenMs) || ''
+}
+
 function barStyle(bar, index) {
   const state = bar.state || spanState(bar.status)
   const width = Math.max(bar.widthPct, bar.durationMs > 0 ? 0.8 : 0)
@@ -125,6 +138,7 @@ function tipOf(bar) {
   return {
     agent: bar.name || bar.agent || '—',
     duration: durationOf(bar),
+    firstToken: firstTokenOf(bar) || '—',
     tokens: bar.tokens != null && bar.tokens !== '' ? String(bar.tokens) : '—',
     tools: String(toolCountOf(bar)),
     errorCode: bar.errorCode || '—',
@@ -187,6 +201,17 @@ function toggle(agent) {
   animation-iteration-count: 1;
   animation-delay: calc(var(--wf-i, 0) * 36ms);
   transition: width 0.25s ease, opacity 0.25s ease, transform 0.25s ease, filter 0.25s ease;
+}
+.ops-wf-ttft {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #fff;
+  opacity: 0.88;
+  pointer-events: none;
 }
 .ops-wf-row.on .ops-wf-bar {
   transform: translateY(-1px);

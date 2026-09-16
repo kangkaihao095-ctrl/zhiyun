@@ -54,6 +54,8 @@ class ObservabilityBoardTest {
         task = reviewTaskRepo.saveAndFlush(task);
 
         AgentSpan citation = span(task, "CITATION_INTEGRITY", Codes.DONE, 900L, 400);
+        citation.setFirstTokenMs(80L);
+        citation.setFirstTokenAt(java.time.Instant.parse("2026-09-11T00:00:00.080Z"));
         citation.setToolCalls("""
                 [{"tool":"AcademicSearch","calls":3,"ok":2,"failed":1,"durationMs":40,"lookupDoi":3,"lookupOk":2,"notVerified":1,"inventedDropped":1},
                  {"tool":"WebSearch","calls":1,"ok":1,"failed":0,"durationMs":80}]
@@ -61,6 +63,8 @@ class ObservabilityBoardTest {
         agentSpanRepo.saveAndFlush(citation);
 
         AgentSpan reviewer = span(task, "ACADEMIC_REVIEWER", Codes.DONE, 1200L, 600);
+        reviewer.setFirstTokenMs(120L);
+        reviewer.setFirstTokenAt(java.time.Instant.parse("2026-09-11T00:00:00.200Z"));
         reviewer.setToolCalls("""
                 [{"tool":"ManuscriptRetrieval","calls":2,"ok":2,"failed":0,"durationMs":50,"hits":0,"emptyHits":2},
                  {"tool":"KnowledgeRetrieval","calls":1,"ok":1,"failed":0,"durationMs":30,"hits":4},
@@ -96,7 +100,8 @@ class ObservabilityBoardTest {
                 .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
 
         assertThat(obs.get("caption").asText()).contains("非 SLA");
-        assertThat(obs.get("caption").asText()).contains("无 TTFT");
+        assertThat(obs.get("caption").asText()).contains("首 token");
+        assertThat(obs.get("caption").asText()).doesNotContain("无 TTFT");
         assertThat(obs.has("meters")).isFalse();
 
         JsonNode llm = obs.get("llm");
@@ -108,6 +113,11 @@ class ObservabilityBoardTest {
         assertThat(llm.get("durationMs").asLong()).isEqualTo(2500L);
         assertThat(llm.get("p50Ms").asLong()).isEqualTo(900L);
         assertThat(llm.get("p95Ms").asLong()).isEqualTo(1200L);
+        assertThat(llm.get("firstTokenSamples").asInt()).isEqualTo(2);
+        assertThat(llm.get("firstTokenP50Ms").asLong()).isEqualTo(80L);
+        assertThat(llm.get("firstTokenP95Ms").asLong()).isEqualTo(120L);
+        assertThat(llm.get("caption").asText()).contains("首 token");
+        assertThat(llm.get("caption").asText()).doesNotContain("无 TTFT");
         assertThat(llm.get("caption").asText()).doesNotContain("TTFT 达标");
 
         JsonNode citationBoard = obs.get("citation");
@@ -140,6 +150,8 @@ class ObservabilityBoardTest {
 
         assertThat(obs.get("kpis").get("p50Ms").asLong()).isEqualTo(900L);
         assertThat(obs.get("kpis").get("p95Ms").asLong()).isEqualTo(1200L);
+        assertThat(obs.get("kpis").get("firstTokenP50Ms").asLong()).isEqualTo(80L);
+        assertThat(obs.get("kpis").get("firstTokenP95Ms").asLong()).isEqualTo(120L);
         assertThat(obs.get("kpis").get("activeTenants").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(obs.get("crossTenant").get("activeTenants").asInt()).isGreaterThanOrEqualTo(1);
         assertThat(obs.get("crossTenant").get("caption").asText()).contains("C 端不可见");
@@ -193,6 +205,8 @@ class ObservabilityBoardTest {
                 .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
         JsonNode citationNode = trace.get("nodes").get(0);
         assertThat(citationNode.get("agent").asText()).isEqualTo("CITATION_INTEGRITY");
+        assertThat(citationNode.get("firstTokenMs").asLong()).isEqualTo(80L);
+        assertThat(citationNode.get("firstTokenAt").asText()).contains("2026-09-11T00:00:00.080");
         assertThat(citationNode.get("toolCalls").isArray()).isTrue();
         assertThat(citationNode.get("toolCalls").toString()).contains("AcademicSearch");
         assertThat(citationNode.get("toolCalls").toString()).contains("lookupDoi");
@@ -230,6 +244,9 @@ class ObservabilityBoardTest {
         assertThat(obs.get("llm").get("p50Ms").isNull()).isTrue();
         assertThat(obs.get("llm").get("p95Ms").isNull()).isTrue();
         assertThat(obs.get("kpis").get("p50Ms").isNull()).isTrue();
+        assertThat(obs.get("llm").get("firstTokenSamples").asInt()).isEqualTo(0);
+        assertThat(obs.get("llm").get("firstTokenP50Ms").isNull()).isTrue();
+        assertThat(obs.get("kpis").get("firstTokenP50Ms").isNull()).isTrue();
         assertThat(obs.get("backlog").get("pending").asInt()).isEqualTo(0);
         assertThat(obs.get("alerts").get("items")).isEmpty();
         assertThat(obs.get("tools").get("failed").asInt()).isEqualTo(0);

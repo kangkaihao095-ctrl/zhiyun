@@ -122,6 +122,7 @@ const DASHBOARD = {
     workflowName: '快速审读',
     status: 'FAILED',
     durationMs: 3200,
+    firstTokenMs: 80,
     tokens: 1800,
     fencingToken: 2,
     errorCode: 'timeout',
@@ -185,7 +186,7 @@ const DASHBOARD = {
     ],
     byAgent: [{ name: '引用核验', calls: 12, ok: 10, failed: 2, successRatePct: 83, avgDurationMs: 40 }]
   },
-  llm: { calls: 9, tokens: 4000, promptTokens: 0, completionTokens: 0, structuredFail: 1, avgDurationMs: 850, durationMs: 7650, p50Ms: 800, p95Ms: 1200, tokenDeltaPct: 10 },
+  llm: { calls: 9, tokens: 4000, promptTokens: 0, completionTokens: 0, structuredFail: 1, avgDurationMs: 850, durationMs: 7650, p50Ms: 800, p95Ms: 1200, firstTokenAvgMs: 180, firstTokenP50Ms: 160, firstTokenP95Ms: 240, tokenDeltaPct: 10 },
   citation: { lookupDoi: 12, lookupOk: 10, notVerified: 2, notVerifiedPct: 17, inventedDoiDropped: 1 },
   rag: { privateRetrievals: 4, publicRetrievals: 2, knn: 1, emptyHits: 2, privateEmptyHits: 1, publicEmptyHits: 0, knnEmptyHits: 1, hasDuration: true, privateAvgDurationMs: 25, publicAvgDurationMs: 30, knnAvgDurationMs: 12 },
   backlog: { pending: 1, running: 0, waitingAccept: 1, inProgress: 1, leasesHeld: 1, caption: '窗口内 PENDING / RUNNING / 待确认 / lease 持有。不是 MQ 管理面，不是 SLA。' },
@@ -274,6 +275,7 @@ describe('observability helpers', () => {
     const recent = recentDurationRows(DASHBOARD.recent)
     expect(recent[1].taskId).toBe('ZYT2')
     expect(recent[1].errorLabel).toBe('超时')
+    expect(recent[1].firstTokenText).toContain('首 token')
     expect(durationKpi(850)).toBe('850 ms')
     expect(durationKpi(null)).toBe('—')
     expect(durationKpi('')).toBe('—')
@@ -332,6 +334,8 @@ describe('ops console', () => {
             status: 'DONE',
             durationMs: 1200,
             tokens: 2000,
+            firstTokenMs: 80,
+            firstTokenAt: '2026-09-11T00:00:00.080Z',
             startedAt: '2026-09-11T00:00:00.000Z',
             errorCode: 'timeout',
             toolName: 'AcademicSearchTool',
@@ -382,15 +386,18 @@ describe('ops console', () => {
     expect(wrapper.get('[data-testid="ops-llm"]').find('.ops-mini-kpis--8').exists()).toBe(true)
     expect(wrapper.get('[data-testid="ops-citation"]').find('.ops-mini-kpis--4').exists()).toBe(true)
     expect(wrapper.get('[data-testid="ops-harness"]').find('.ops-mini-kpis--4').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="ops-llm"]').findAll('.ops-mini-kpi')).toHaveLength(8)
+    expect(wrapper.get('[data-testid="ops-llm"]').findAll('.ops-mini-kpi')).toHaveLength(10)
     expect(wrapper.get('[data-testid="ops-citation"]').findAll('.ops-mini-kpi')).toHaveLength(4)
     expect(wrapper.get('[data-testid="ops-harness"]').findAll('.ops-mini-kpi')).toHaveLength(4)
-    expect(wrapper.get('[data-testid="ops-llm"]').findAll('.ops-mini-kpi__body')).toHaveLength(8)
+    expect(wrapper.get('[data-testid="ops-llm"]').findAll('.ops-mini-kpi__body')).toHaveLength(10)
     expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('窗口耗时')
     expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('850 ms')
     expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('P50')
     expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('P95')
-    expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('无 TTFT')
+    expect(wrapper.get('[data-testid="ops-llm"]').text()).toContain('首 token')
+    expect(wrapper.get('[data-testid="ops-llm"]').text()).not.toContain('无 TTFT')
+    expect(wrapper.get('[data-testid="ops-llm-ttft"]').text()).toContain('160 ms')
+    expect(wrapper.get('[data-testid="ops-llm-ttft"]').text()).toContain('240 ms')
     expect(wrapper.get('[data-testid="ops-tool-fail"]').text()).toContain('工具失败')
     expect(wrapper.get('[data-testid="ops-tool-fail"]').text()).toContain('节点失败')
     expect(wrapper.get('[data-testid="ops-rag-empty"]').text()).toContain('空召回')
@@ -457,11 +464,14 @@ describe('ops console', () => {
     await wrapper.get('[data-testid="ops-trace-ZYT2"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('[data-testid="ops-trace-ZYT2"]').classes()).toContain('on')
+    expect(wrapper.get('[data-testid="ops-trace-ZYT2"]').text()).toContain('首 token')
     expect(wrapper.find('[data-testid="trace-waterfall"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="ops-waterfall"]').text()).toContain('引用核验')
+    expect(wrapper.find('[data-testid="ops-wf-ttft"]').exists()).toBe(true)
     await wrapper.get('[data-testid="ops-span-CITATION_INTEGRITY"]').trigger('mouseenter')
     expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('Agent')
     expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('耗时')
+    expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('首 token')
     expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('token')
     expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('tool')
     expect(wrapper.get('[data-testid="ops-span-tip"]').text()).toContain('errorCode')

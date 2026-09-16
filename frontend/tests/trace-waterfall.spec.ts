@@ -68,6 +68,17 @@ describe('layoutWaterfall', () => {
     expect(layout.bars[0]).toMatchObject({ leftPct: 0, widthPct: 100, durationMs: 250 })
   })
 
+  it('places a first-token marker from firstTokenAt relative to startedAt', () => {
+    const layout = layoutWaterfall([{
+      agent: 'CITATION_INTEGRITY',
+      startedAt: '2026-01-01T00:00:00.000Z',
+      durationMs: 200,
+      firstTokenAt: '2026-01-01T00:00:00.050Z',
+      firstTokenMs: 50
+    }])
+    expect(layout.bars[0]).toMatchObject({ firstTokenMs: 50, firstTokenPct: 25 })
+  })
+
   it('counts toolCalls for the span tooltip', () => {
     const layout = layoutWaterfall([{
       agent: 'CITATION_INTEGRITY',

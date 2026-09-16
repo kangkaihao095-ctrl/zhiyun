@@ -9,6 +9,7 @@ import com.zhiyun.config.ZhiyunProperties;
 import com.zhiyun.harness.AgentIds;
 import com.zhiyun.harness.AgentTraceService;
 import com.zhiyun.harness.ArtifactStore;
+import com.zhiyun.harness.FirstTokenRecorder;
 import com.zhiyun.harness.HarnessMeters;
 import com.zhiyun.harness.LeaseService;
 import com.zhiyun.harness.ReviewSlot;
@@ -98,6 +99,7 @@ public class AgentRuntime {
         int tokensBefore = UsageMeter.snapshot();
         agentTraceService.begin(slot.getTask(), agentId, slot.getFencingToken());
         ToolCallRecorder.open();
+        FirstTokenRecorder.open();
         try {
             if (agentId.equals(properties.getFault().getTimeoutAgent())) {
                 agentTraceService.fail(slot.getTask(), agentId, "injected timeout on " + agentId, slot.getFencingToken());
@@ -136,6 +138,7 @@ public class AgentRuntime {
             throw new IllegalStateException(message, last);
         } finally {
             ToolCallRecorder.close();
+            FirstTokenRecorder.close();
         }
     }
 

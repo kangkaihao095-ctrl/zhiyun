@@ -300,7 +300,9 @@ class ReviewPipelineTest {
         assertThat(seen).contains(clientMe.get("tenantId").asLong(), strangerMe.get("tenantId").asLong());
         assertThat(obs.get("kpis").get("tokens").asInt()).isGreaterThanOrEqualTo(160);
         assertThat(obs.get("llm").has("avgDurationMs")).isTrue();
-        assertThat(obs.get("llm").get("caption").asText()).contains("无 TTFT");
+        assertThat(obs.get("llm").get("caption").asText()).contains("首 token");
+        assertThat(obs.get("llm").get("caption").asText()).doesNotContain("无 TTFT");
+        assertThat(obs.get("llm").has("firstTokenP50Ms")).isTrue();
         assertThat(obs.has("meters")).isFalse();
         assertThat(obs.get("tools").has("failed")).isTrue();
         assertThat(obs.get("harness").has("fencingRejected")).isTrue();

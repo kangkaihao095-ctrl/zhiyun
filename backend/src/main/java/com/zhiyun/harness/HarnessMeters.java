@@ -6,10 +6,13 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -20,6 +23,7 @@ import java.util.function.Supplier;
 public class HarnessMeters {
     public static final String LLM_CALLS = "zhiyun.llm.calls";
     public static final String LLM_DURATION = "zhiyun.llm.duration";
+    public static final String LLM_TTFT = "zhiyun.llm.ttft";
     public static final String LLM_TOKENS = "zhiyun.llm.tokens";
     public static final String LLM_PROMPT_TOKENS = "zhiyun.llm.tokens.prompt";
     public static final String LLM_COMPLETION_TOKENS = "zhiyun.llm.tokens.completion";
@@ -40,6 +44,9 @@ public class HarnessMeters {
 
     private final Counter llmCalls;
     private final Timer llmDuration;
+    private final Timer llmTtft;
+    private final AtomicReference<Instant> lastFirstTokenAt = new AtomicReference<>();
+    private final AtomicLong lastFirstTokenMs = new AtomicLong(-1);
     private final Counter llmTokens;
     private final Counter llmPromptTokens;
     private final Counter llmCompletionTokens;
@@ -64,6 +71,10 @@ public class HarnessMeters {
                 .register(registry);
         this.llmDuration = Timer.builder(LLM_DURATION)
                 .description("LLM invocation duration (count + total time; histogram for later P99)")
+                .publishPercentileHistogram()
+                .register(registry);
+        this.llmTtft = Timer.builder(LLM_TTFT)
+                .description("LLM time-to-first-token; stream = first delta, complete = full body. Not SLA.")
                 .publishPercentileHistogram()
                 .register(registry);
         this.llmTokens = Counter.builder(LLM_TOKENS)
@@ -139,6 +150,20 @@ public class HarnessMeters {
         } finally {
             recordLlmCall(System.nanoTime() - t0);
         }
+    }
+
+    /**
+     * 记录一次有效首 token。失败或无 token 不要调用。
+     * 流式：第一个 content/delta；非流式：完整响应体到达。
+     */
+    public void recordFirstToken(Instant firstTokenAt, long firstTokenMs) {
+        if (firstTokenAt == null || firstTokenMs < 0) {
+            return;
+        }
+        llmTtft.record(firstTokenMs, TimeUnit.MILLISECONDS);
+        lastFirstTokenAt.set(firstTokenAt);
+        lastFirstTokenMs.set(firstTokenMs);
+        FirstTokenRecorder.record(firstTokenAt, firstTokenMs);
     }
 
     public void recordLlmTokens(int tokens) {
@@ -236,9 +261,15 @@ public class HarnessMeters {
 
     public Map<String, Object> snapshot() {
         Map<String, Object> out = new LinkedHashMap<>();
-        out.put("caption", "进程内 Micrometer，非 SLA。无 TTFT。");
+        out.put("caption", "进程内 Micrometer，非 SLA。首 token 为 chat TTFT，不是 SLA。");
         out.put("llmCalls", (long) llmCalls.count());
         out.put("llmDurationMs", (long) llmDuration.totalTime(TimeUnit.MILLISECONDS));
+        out.put("ttftCount", llmTtft.count());
+        out.put("ttftMs", (long) llmTtft.totalTime(TimeUnit.MILLISECONDS));
+        Instant lastTtftAt = lastFirstTokenAt.get();
+        out.put("lastFirstTokenAt", lastTtftAt == null ? null : lastTtftAt.toString());
+        long lastTtftMs = lastFirstTokenMs.get();
+        out.put("lastFirstTokenMs", lastTtftMs < 0 ? null : lastTtftMs);
         out.put("llmTokens", (long) llmTokens.count());
         out.put("promptTokens", (long) llmPromptTokens.count());
         out.put("completionTokens", (long) llmCompletionTokens.count());

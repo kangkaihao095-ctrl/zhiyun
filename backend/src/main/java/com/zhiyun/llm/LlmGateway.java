@@ -125,6 +125,7 @@ public class LlmGateway {
         body.put("enable_thinking", false);
         body.put("messages", messages);
         return harnessMeters.timeLlm(() -> {
+        FirstTokenClock clock = new FirstTokenClock();
         try {
             String full = restClient.post()
                     .uri(endpoint("/chat/completions", null))
@@ -158,6 +159,9 @@ public class LlmGateway {
                                 }
                                 String piece = streamDelta(data);
                                 if (piece != null && !piece.isEmpty()) {
+                                    if (clock.markIfFirst(true, FirstTokenClock.SOURCE_STREAM)) {
+                                        harnessMeters.recordFirstToken(clock.firstTokenAt(), clock.firstTokenMs());
+                                    }
                                     acc.append(piece);
                                     if (onDelta != null) {
                                         onDelta.accept(piece);
@@ -403,6 +407,7 @@ public class LlmGateway {
 
     private String chatContent(Map<String, Object> body, UserLlmOverride override) {
         return harnessMeters.timeLlm(() -> {
+            FirstTokenClock clock = new FirstTokenClock();
             Map<?, ?> resp = post(endpoint("/chat/completions", override), body, apiKey(override));
             if (override == null) {
                 recordUsage(resp);
@@ -423,7 +428,14 @@ public class LlmGateway {
             if (content == null || content.isBlank()) {
                 content = firstText(msg.get("reasoning_content"));
             }
-            return content == null || content.isBlank() ? null : content;
+            if (content == null || content.isBlank()) {
+                return null;
+            }
+            // 非流式：完整响应体到达即记首 token，不是流式 TTFT。
+            if (clock.markIfFirst(true, FirstTokenClock.SOURCE_COMPLETE)) {
+                harnessMeters.recordFirstToken(clock.firstTokenAt(), clock.firstTokenMs());
+            }
+            return content;
         });
     }
 
