@@ -19,6 +19,7 @@ import App from '../src/App.vue'
 import Home from '../src/views/Home.vue'
 import Billing from '../src/views/Billing.vue'
 import Account from '../src/views/Account.vue'
+import RechargeModal from '../src/components/RechargeModal.vue'
 import { routes } from '../src/router.js'
 import { authGuard } from '../src/auth-guard.js'
 
@@ -35,8 +36,12 @@ const me = {
   operator: false
 }
 
+let lastCustomYuan = 10
+
 function stubApi() {
-  api.mockImplementation(async (path: unknown, options?: { method?: string }) => {
+  me.quota = 8
+  lastCustomYuan = 10
+  api.mockImplementation(async (path: unknown, options?: { method?: string, body?: { amountYuan?: number } }) => {
     const p = String(path)
     const method = options?.method || 'GET'
     if (p === '/me') return { ...me }
@@ -47,8 +52,15 @@ function stubApi() {
     if (p === '/plans') {
       return [{ id: 2, name: '专业版', code: 'pro', priceCents: 9900, quotaAmount: 120, description: '120点' }]
     }
-    if (p.includes('/mock-pay')) return { id: 'ZY1', status: 'PAID', quotaAmount: 10 }
-    if (method === 'POST' && p === '/orders') return { id: 'ZY9', status: 'PENDING' }
+    if (p.includes('/mock-pay')) {
+      me.quota = Number(me.quota || 0) + lastCustomYuan
+      return { id: 'ZY9', status: 'PAID', quotaAmount: lastCustomYuan }
+    }
+    if (method === 'POST' && p === '/orders') {
+      const body = options?.body || {}
+      lastCustomYuan = 'amountYuan' in body ? Number(body.amountYuan) : 120
+      return { id: 'ZY9', status: 'PENDING', quotaAmount: lastCustomYuan }
+    }
     if (p.startsWith('/orders/')) {
       return {
         id: 'ZY1',
@@ -242,6 +254,50 @@ describe('sidebar', () => {
   it('highlights 设置 on the merged account page', async () => {
     const { wrapper } = await mountShell('/account')
     expect(wrapper.find('.side-nav a.is-on').text()).toBe('设置')
+  })
+})
+
+describe('RechargeModal', () => {
+  beforeEach(() => {
+    sessionStorage.setItem('token', 'jwt')
+    stubApi()
+  })
+
+  it('blocks custom recharge below 10 yuan and mock-pays a valid amount', async () => {
+    const wrapper = mount(RechargeModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: { provide: { refreshMe: vi.fn().mockResolvedValue(undefined) } }
+    })
+    await flushPromises()
+    const overlay = () => document.body.querySelector('.recharge-overlay') as HTMLElement
+    expect(overlay()?.textContent).toContain('灵活充值')
+
+    const input = overlay().querySelector('.custom-input') as HTMLInputElement
+    input.value = '9'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    const underMin = overlay().querySelector('.recharge-custom .btn-accent') as HTMLButtonElement
+    expect(underMin.disabled).toBe(true)
+
+    const quick20 = Array.from(overlay().querySelectorAll('.quick-amt button')).find((b) => b.textContent?.trim() === '¥20')
+    quick20?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await nextTick()
+    const pay20 = overlay().querySelector('.recharge-custom .btn-accent') as HTMLButtonElement
+    expect(pay20.textContent).toContain('充值 20 额度')
+    pay20.click()
+    await flushPromises()
+    expect(overlay().textContent).toContain('确认充值')
+    expect(overlay().textContent).toContain('20 额度')
+
+    const confirm = Array.from(overlay().querySelectorAll('.modal-actions .btn-accent')).find((b) => b.textContent?.includes('确认并到账')) as HTMLButtonElement
+    confirm.click()
+    await flushPromises()
+    expect(api).toHaveBeenCalledWith('/orders', { method: 'POST', body: { amountYuan: 20 } })
+    expect(api).toHaveBeenCalledWith('/orders/ZY9/mock-pay', { method: 'POST', body: {} })
+    expect(me.quota).toBe(28)
+    expect(wrapper.emitted('paid')).toBeTruthy()
+    wrapper.unmount()
   })
 })
 

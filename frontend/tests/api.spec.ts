@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { api, asPage, downloadJson, downloadMarkdown, qs, sanitizeFilename, token } from '../src/api.js'
+import { api, asPage, downloadJson, downloadMarkdown, fetchAuthBlob, networkFailureMessage, qs, sanitizeFilename, token } from '../src/api.js'
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -123,12 +123,46 @@ describe('api', () => {
     await expect(api('/logout', { method: 'POST' })).resolves.toBeNull()
   })
 
+  it('maps Failed to fetch without going through api()', () => {
+    expect(networkFailureMessage(new TypeError('Failed to fetch'))).toMatch(/连不上服务器/)
+    expect(networkFailureMessage(new Error('boom'))).toBe('boom')
+  })
+
   it('returns the raw response for SSE', async () => {
     const res = new Response('data: hi\n\n', {
       headers: { 'Content-Type': 'text/event-stream' }
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res))
     await expect(api('/cs/chat', { method: 'POST' })).resolves.toBe(res)
+  })
+})
+
+describe('fetchAuthBlob', () => {
+  it('attaches the bearer token and returns a blob', async () => {
+    sessionStorage.setItem('token', 'abc')
+    const fetchMock = vi.fn().mockResolvedValue(new Response('pdf-bytes', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' }
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const file = await fetchAuthBlob('/manuscripts/1/versions/1/file')
+    expect(file.size).toBe(9)
+    expect(file.type).toContain('pdf')
+    expect(fetchMock).toHaveBeenCalledWith('/api/manuscripts/1/versions/1/file', {
+      headers: { Authorization: 'Bearer abc' }
+    })
+  })
+
+  it('maps 401 to login and other failures to a file error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 401 })))
+    await expect(fetchAuthBlob('/manuscripts/1/versions/1/file')).rejects.toThrow('请先登录')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 404 })))
+    await expect(fetchAuthBlob('/manuscripts/1/versions/1/file')).rejects.toThrow('无法打开文件')
+  })
+
+  it('maps Failed to fetch to a connection error', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(fetchAuthBlob('/manuscripts/1/versions/1/file')).rejects.toThrow(/连不上服务器/)
   })
 })
 

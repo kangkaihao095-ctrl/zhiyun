@@ -176,6 +176,27 @@ class ObservabilityBoardTest {
                 .andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
         assertThat(after.get("harness").get("fencingRejected").asLong()).isEqualTo(rejectedBefore);
+
+        JsonNode alias = mapper.readTree(mvc.perform(get("/api/observability")
+                        .param("range", "24h")
+                        .param("tenantId", String.valueOf(task.getTenantId()))
+                        .header("Authorization", "Bearer " + ops))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        assertThat(alias.get("caption").asText()).isEqualTo(obs.get("caption").asText());
+        assertThat(alias.get("tools").get("failed").asInt()).isEqualTo(obs.get("tools").get("failed").asInt());
+        assertThat(alias.get("citation").get("lookupDoi").asInt()).isEqualTo(3);
+
+        JsonNode trace = mapper.readTree(mvc.perform(get("/api/reviews/" + task.publicId() + "/trace")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        JsonNode citationNode = trace.get("nodes").get(0);
+        assertThat(citationNode.get("agent").asText()).isEqualTo("CITATION_INTEGRITY");
+        assertThat(citationNode.get("toolCalls").isArray()).isTrue();
+        assertThat(citationNode.get("toolCalls").toString()).contains("AcademicSearch");
+        assertThat(citationNode.get("toolCalls").toString()).contains("lookupDoi");
+        assertThat(trace.toString()).doesNotContain("meters");
     }
 
     @Test

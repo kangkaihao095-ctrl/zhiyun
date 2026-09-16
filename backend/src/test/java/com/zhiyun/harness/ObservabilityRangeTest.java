@@ -67,6 +67,35 @@ class ObservabilityRangeTest {
     }
 
     @Test
+    void shortWindowsKeepMinuteAndHourBuckets() {
+        Instant now = Instant.parse("2026-09-11T12:00:00Z");
+        List<Map<String, Object>> fifteen = ObservabilityService.trendOf(List.of(), "15m", now);
+        assertThat(fifteen).hasSize(15);
+        assertThat(String.valueOf(fifteen.get(0).get("bucket"))).matches("\\d{2}:\\d{2}");
+        List<Map<String, Object>> hour = ObservabilityService.trendOf(List.of(), "1h", now);
+        assertThat(hour).hasSize(12);
+        assertThat(String.valueOf(hour.get(0).get("bucket"))).matches("\\d{2}:\\d{2}");
+    }
+
+    @Test
+    void tokenDeltaUsesAdjacentBucketsAndStaysNullWithoutBaseline() {
+        assertThat(ObservabilityService.tokenDeltaPct(List.of())).isNull();
+        assertThat(ObservabilityService.tokenDeltaPct(List.of(Map.of("tokens", 10)))).isNull();
+        assertThat(ObservabilityService.tokenDeltaPct(List.of(
+                Map.of("tokens", 0),
+                Map.of("tokens", 40)
+        ))).isNull();
+        assertThat(ObservabilityService.tokenDeltaPct(List.of(
+                Map.of("tokens", 100),
+                Map.of("tokens", 110)
+        ))).isEqualTo(10);
+        assertThat(ObservabilityService.tokenDeltaPct(List.of(
+                Map.of("tokens", 200),
+                Map.of("tokens", 100)
+        ))).isEqualTo(-50);
+    }
+
+    @Test
     void percentileUsesWindowSamplesAndDashWhenEmpty() {
         assertThat(ObservabilityService.percentile(List.of(), 0.95)).isNull();
         assertThat(ObservabilityService.percentile(List.of(400L, 900L, 1200L), 0.50)).isEqualTo(900L);

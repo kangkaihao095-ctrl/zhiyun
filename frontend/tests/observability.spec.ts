@@ -4,17 +4,23 @@ import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   agentDurationRows,
+  clockText,
   durationKpi,
   errorCodeRows,
   kpiCards,
+  liveLeaseRows,
   OBSERVABILITY_CAPTION,
+  rangeLabelOf,
   rangeOf,
   filterTenants,
   filterTraces,
   TENANT_PAGE_SIZE,
   TRACE_PAGE_SIZE,
   isMonthRange,
+  spanColor,
+  spanState,
   toolAxisLabel,
+  toolCallRows,
   wrapAxisLabel,
   axisTickLines,
   chartFootnote,
@@ -22,6 +28,7 @@ import {
   sparseAxisTick,
   sparkline,
   trendChart,
+  vbarChart,
   alertRows,
   tokenDeltaText
 } from '../src/observability.js'
@@ -40,6 +47,7 @@ vi.mock('../src/api.js', async (importOriginal) => {
 import OpsConsole from '../src/views/OpsConsole.vue'
 import History from '../src/views/History.vue'
 import OpsBarChart from '../src/components/OpsBarChart.vue'
+import OpsComboChart from '../src/components/OpsComboChart.vue'
 
 const Blank = defineComponent({ template: '<div />' })
 
@@ -199,6 +207,9 @@ describe('observability helpers', () => {
     expect(rangeOf('30d')).toBe('7d')
     expect(rangeOf('all')).toBe('all')
     expect(rangeOf('weird')).toBe('7d')
+    expect(rangeLabelOf('15d')).toBe('近半月')
+    expect(rangeLabelOf('6m')).toBe('近半年')
+    expect(rangeLabelOf('weird')).toBe('7d')
     expect(isMonthRange('6m')).toBe(true)
     expect(isMonthRange('all')).toBe(true)
     expect(isMonthRange('15d')).toBe(false)
@@ -272,6 +283,24 @@ describe('observability helpers', () => {
     expect(toolAxisLabel('WebSearch')).toBe('网页检索')
     expect(toolAxisLabel('DocxTool')).toBe('Docx')
     expect(axisTickLines('WebSearch', { dense: true })).toEqual(['网页'])
+    const tools = toolCallRows(DASHBOARD.tools.byTool)
+    expect(tools[0]).toMatchObject({ name: 'AcademicSearch', calls: 12, failed: 2 })
+    const chart = vbarChart(tools, 'calls')
+    expect(chart.hasData).toBe(true)
+    expect(chart.bars[0].label).toBe('AcademicSearch')
+    expect(liveLeaseRows(DASHBOARD.leases)[0]).toMatchObject({
+      taskId: 'ZYT1',
+      status: 'RUNNING',
+      fencingToken: 4
+    })
+    expect(spanState('DONE')).toBe('done')
+    expect(spanState('RUNNING')).toBe('current')
+    expect(spanState('FAILED')).toBe('failed')
+    expect(spanState('PENDING')).toBe('pending')
+    expect(spanColor('CITATION_INTEGRITY', 'failed')).toBe('#e02f44')
+    expect(spanColor('CITATION_INTEGRITY', 'pending')).toBe('#3d4654')
+    expect(spanColor('CITATION_INTEGRITY', 'done')).toMatch(/^#/)
+    expect(clockText(Date.parse('2026-09-11T10:00:00Z'))).toMatch(/^\d{2}:\d{2}:\d{2}$/)
   })
 })
 
@@ -441,6 +470,17 @@ describe('ops console', () => {
     await wrapper.get('[data-testid="ops-span-CITATION_INTEGRITY"]').trigger('click')
     expect(wrapper.get('[data-testid="ops-span-detail"]').text()).toContain('errorCode')
     expect(wrapper.get('[data-testid="ops-span-detail"]').text()).toContain('timeout')
+    expect(board.text()).toContain('创建')
+    expect(board.text()).toContain('完成率')
+    expect(wrapper.find('.combo-chart').exists()).toBe(true)
+    expect(wrapper.find('.combo-chart .rate-line').exists()).toBe(true)
+    await wrapper.get('[data-testid="ops-refresh"]').trigger('click')
+    await flushPromises()
+    expect(api.mock.calls.filter((call) => String(call[0]).startsWith('/ops/observability')).length).toBeGreaterThan(2)
+    await wrapper.get('[data-testid="ops-tenant-all"]').trigger('click')
+    await flushPromises()
+    const obsCalls = api.mock.calls.map((call) => String(call[0])).filter((p) => p.startsWith('/ops/observability'))
+    expect(obsCalls.at(-1)).toBe('/ops/observability?range=15d')
     wrapper.unmount()
   })
 
@@ -485,6 +525,55 @@ describe('ops console', () => {
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/ops/login')
     expect(wrapper.find('[data-testid="obs-board"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('OpsComboChart', () => {
+  it('shows the empty window copy when there are no buckets', () => {
+    const wrapper = mount(OpsComboChart, { props: { labels: [] } })
+    expect(wrapper.text()).toBe('这个窗口没有样本')
+    expect(wrapper.find('svg').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('draws create/complete bars and a completion-rate line', async () => {
+    const wrapper = mount(OpsComboChart, {
+      props: {
+        labels: ['09-10', '09-11', '09-12'],
+        startedValues: [1, 2, 4],
+        succeededValues: [1, 1, 3],
+        failedValues: [0, 1, 1],
+        rateValues: [100, 50, 75]
+      }
+    })
+    expect(wrapper.text()).toContain('创建')
+    expect(wrapper.text()).toContain('完成')
+    expect(wrapper.text()).toContain('完成率')
+    expect(wrapper.findAll('.bar--started')).toHaveLength(3)
+    expect(wrapper.findAll('.bar--ok')).toHaveLength(3)
+    expect(wrapper.get('.rate-line').attributes('d')).toContain('M')
+    await wrapper.findAll('.group')[1].trigger('mouseenter')
+    expect(wrapper.get('.tooltip').text()).toContain('09-11')
+    expect(wrapper.get('.tooltip').text()).toContain('创建 2')
+    expect(wrapper.get('.tooltip').text()).toContain('完成率 50%')
+    wrapper.unmount()
+  })
+
+  it('sparsifies long windows so the axis is not a wall of dates', () => {
+    const labels = Array.from({ length: 15 }, (_, i) => `09-${String(i + 1).padStart(2, '0')}`)
+    const wrapper = mount(OpsComboChart, {
+      props: {
+        labels,
+        startedValues: labels.map((_, i) => i + 1),
+        succeededValues: labels.map((_, i) => i),
+        failedValues: labels.map(() => 0),
+        rateValues: labels.map(() => 50)
+      }
+    })
+    const ticks = wrapper.findAll('.group > .tick')
+    expect(ticks.length).toBeLessThan(labels.length)
+    expect(ticks.length).toBeGreaterThanOrEqual(3)
     wrapper.unmount()
   })
 })
