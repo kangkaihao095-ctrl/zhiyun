@@ -3,9 +3,11 @@
     <transition name="cs-pop">
       <section v-if="open" class="cs-panel" role="dialog" :aria-label="CS_NAME" aria-modal="true">
         <header class="cs-head">
-          <div>
+          <span class="cs-avatar" aria-hidden="true"><img src="/logo.png" alt="" /></span>
+          <div class="cs-head-copy">
             <p class="cs-kicker">{{ CS_NAME }}</p>
             <h2>有问题问{{ CS_NAME }}</h2>
+            <p class="cs-status"><i aria-hidden="true" />额度与订单来自只读工具，不靠模型口算</p>
           </div>
           <button type="button" class="cs-x" :aria-label="'关闭' + CS_NAME" @click="open = false">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -38,9 +40,9 @@
             v-model="draft"
             placeholder="输入问题，回车发送"
           />
-          <button class="btn btn-accent" type="submit" :disabled="busy">
+          <button class="btn btn-accent" type="submit" :disabled="busy" aria-label="发送">
             <span v-if="busy" class="send-wait"><i /><i /><i /></span>
-            <span v-else>发送</span>
+            <svg v-else class="cs-send-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2l-7 20-4-9-9-4z" /></svg>
           </button>
         </form>
       </section>
@@ -57,6 +59,7 @@
         <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7A2.5 2.5 0 0 1 16.5 16H12l-4 3.2V16H7.5A2.5 2.5 0 0 1 5 13.5v-7Z" />
         <path d="M9 9.2h6M9 12.2h4" />
       </svg>
+      <span v-if="!open" class="cs-fab-label" aria-hidden="true">问{{ CS_NAME }}</span>
       <svg v-else class="cs-fab-ico" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M6 6l12 12M18 6 6 18" />
       </svg>

@@ -1,8 +1,6 @@
 <template>
   <div class="app-root" :class="{ entering, 'on-login': onLogin, 'on-ops': onOps }">
-    <AmbientCanvas v-if="!onOps && !onLogin" />
-    <div v-if="!onOps && !onLogin" class="grain" aria-hidden="true" />
-    <div v-if="!onOps && !onLogin" class="light-sheet" aria-hidden="true" />
+    <AmbientCanvas v-if="!onOps" :intense="onLogin" />
 
     <div v-if="onLogin" class="login-layer">
       <ThemeToggle class="login-theme" />
@@ -25,18 +23,39 @@
           <img class="brand-logo" src="/logo.png" alt="" />
           <div class="brand-copy">
             <div class="brand-mark">智云</div>
-            <div class="brand-sub">论文审校</div>
+            <div class="brand-sub">Multi-Agent 论文审校</div>
           </div>
         </router-link>
+
+        <p class="side-section" aria-hidden="true">工作台</p>
         <nav class="side-nav">
-          <router-link to="/" active-class="" exact-active-class="" :class="{ 'is-on': onPapers }">论文</router-link>
+          <router-link to="/" active-class="" exact-active-class="" :class="{ 'is-on': onPapers }">
+            <Icon name="papers" /><span>论文</span>
+          </router-link>
           <router-link to="/history" active-class="" exact-active-class="" :class="{ 'is-on': onHistory }">
-            审校
+            <Icon name="review" /><span>审校</span>
             <em v-if="unreadInbox" class="nav-badge">{{ unreadInbox > 9 ? '9+' : unreadInbox }}</em>
           </router-link>
-          <router-link to="/billing" active-class="" exact-active-class="" :class="{ 'is-on': onBilling }">订单</router-link>
-          <router-link to="/account" active-class="" exact-active-class="" :class="{ 'is-on': onSettings }">设置</router-link>
+          <router-link to="/billing" active-class="" exact-active-class="" :class="{ 'is-on': onBilling }">
+            <Icon name="orders" /><span>订单</span>
+          </router-link>
+          <router-link to="/account" active-class="" exact-active-class="" :class="{ 'is-on': onSettings }">
+            <Icon name="settings" /><span>设置</span>
+          </router-link>
         </nav>
+
+        <div class="side-engine" aria-hidden="true">
+          <div class="side-engine-head">
+            <span class="side-engine-dot" />
+            <strong>审校引擎</strong>
+            <em>7 Agent</em>
+          </div>
+          <div class="side-engine-rail">
+            <i v-for="n in 7" :key="n" :style="{ '--i': n }" />
+          </div>
+          <p>LiteFlow 编排 · 结构化交接<br />改稿只出候选稿，你确认才写入</p>
+        </div>
+
         <div class="side-foot">
           <router-link
             class="side-account"
@@ -52,7 +71,9 @@
               <em>{{ me.email || me.tenantName || '个人实验室' }}</em>
             </span>
           </router-link>
-          <button class="side-logout" type="button" @click="logout">退出登录</button>
+          <button class="side-logout" type="button" @click="logout">
+            <Icon name="logout" :size="15" />退出登录
+          </button>
         </div>
       </aside>
       <div class="workspace">
@@ -63,7 +84,12 @@
             type="button"
             data-testid="stage-back"
             @click="goBack"
-          >返回</button>
+          ><Icon name="arrowLeft" :size="15" />返回</button>
+          <div class="stage-crumb" aria-hidden="true">
+            <span>智云</span>
+            <Icon name="chevronRight" :size="14" />
+            <strong>{{ sectionName }}</strong>
+          </div>
           <div class="stage-quota">
             <ThemeToggle />
             <QuotaChip compact :quota="me.quota ?? 0" @click="goOrders" />
@@ -72,7 +98,7 @@
               type="button"
               data-testid="recharge-open"
               @click="openRecharge"
-            >充值</button>
+            ><Icon name="coins" :size="15" />充值</button>
           </div>
         </header>
         <main class="stage">
@@ -102,6 +128,7 @@ import ToastHost from './components/ToastHost.vue'
 import QuotaChip from './components/QuotaChip.vue'
 import ThemeToggle from './components/ThemeToggle.vue'
 import AmbientCanvas from './components/AmbientCanvas.vue'
+import Icon from './components/Icon.vue'
 import Chat from './views/Chat.vue'
 import RechargeModal from './components/RechargeModal.vue'
 import { bootTheme } from './theme'
@@ -123,6 +150,12 @@ const onHistory = computed(() => route.path === '/history' || route.path.startsW
 const onBilling = computed(() => route.path === '/billing' || route.path.startsWith('/orders'))
 const onSettings = computed(() => route.path === '/account' || route.path.startsWith('/models'))
 const unreadInbox = computed(() => Number(me.value.unreadInbox || 0))
+const sectionName = computed(() => {
+  if (onHistory.value) return route.path.startsWith('/reviews') ? '审校结果' : '审校记录'
+  if (onBilling.value) return '订单与额度'
+  if (onSettings.value) return '设置'
+  return route.path.startsWith('/manuscripts') ? '论文详情' : '论文工作台'
+})
 const showBack = computed(() => !onLogin.value && !isShellRoot(route))
 const initials = computed(() => {
   const name = String(me.value.displayName || me.value.email || '智').trim()

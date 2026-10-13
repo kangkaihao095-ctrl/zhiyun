@@ -1,0 +1,264 @@
+/*
+ * 智云 Design Tokens — 「墨 · 朱砂 · 金线」
+ * 浅色：宣纸白 + 墨色文字 + 朱砂强调；深色：墨黑底 + 暖白文字 + 朱砂/金线点缀。
+ * 页面与组件只引用语义 token，不直接写色值。
+ */
+:root {
+  color-scheme: light;
+
+  /* ---------- 字体 ---------- */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB",
+    "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Songti SC", "STSongti-SC-Regular", "Noto Serif SC", "Source Han Serif SC", "Iowan Old Style",
+    "Georgia", serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-17: 17px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --fs-30: 30px;
+  --fs-38: 38px;
+  --fs-48: 48px;
+
+  /* ---------- 间距（4 基准） ---------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* ---------- 圆角 ---------- */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-2xl: 28px;
+  --r-pill: 999px;
+
+  /* ---------- 动效 ---------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 560ms;
+
+  /* ---------- 布局 ---------- */
+  --sidebar-w: 256px;
+  --topbar-h: 64px;
+  --content-max: 1200px;
+
+  /* ---------- 色彩：浅色 ---------- */
+  --bg: #f5f4f0;
+  --bg-sunken: #eeece6;
+  --surface: #ffffff;
+  --surface-2: #fafaf7;
+  --surface-3: #f3f2ee;
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-strong: rgba(255, 255, 255, 0.88);
+  --surface-hover: rgba(20, 18, 16, 0.035);
+  --surface-active: rgba(20, 18, 16, 0.06);
+
+  --border: rgba(20, 18, 16, 0.08);
+  --border-strong: rgba(20, 18, 16, 0.14);
+  --border-focus: rgba(210, 73, 31, 0.55);
+  --hairline-gold: linear-gradient(90deg, transparent, rgba(176, 141, 76, 0.55), transparent);
+
+  --text: #17161a;
+  --text-2: #57544f;
+  --text-3: #8b8780;
+  --text-inverse: #fbfaf7;
+
+  --accent: #d2491f;
+  --accent-hover: #b93d16;
+  --accent-press: #a3360f;
+  --accent-soft: rgba(210, 73, 31, 0.08);
+  --accent-soft-2: rgba(210, 73, 31, 0.14);
+  --accent-ring: rgba(210, 73, 31, 0.22);
+  --accent-text: #b8401a;
+  --accent-grad: linear-gradient(135deg, #e0603a 0%, #c9431b 55%, #a8351a 100%);
+
+  --gold: #a98443;
+  --gold-soft: rgba(169, 132, 67, 0.12);
+
+  --ok: #1d8a5a;
+  --ok-soft: rgba(29, 138, 90, 0.1);
+  --warn: #b7791f;
+  --warn-soft: rgba(183, 121, 31, 0.12);
+  --danger: #cf3d36;
+  --danger-soft: rgba(207, 61, 54, 0.09);
+  --info: #2f6fd0;
+  --info-soft: rgba(47, 111, 208, 0.09);
+
+  --diff-del-bg: #fdecea;
+  --diff-del-fg: #9b2c25;
+  --diff-add-bg: #e6f5ec;
+  --diff-add-fg: #1a6b46;
+  --mark-hit: rgba(232, 176, 60, 0.38);
+  --mark-patch: rgba(210, 73, 31, 0.1);
+
+  --shadow-xs: 0 1px 2px rgba(17, 16, 20, 0.05);
+  --shadow-sm: 0 1px 2px rgba(17, 16, 20, 0.04), 0 2px 8px rgba(17, 16, 20, 0.04);
+  --shadow-md: 0 1px 2px rgba(17, 16, 20, 0.04), 0 8px 24px -6px rgba(17, 16, 20, 0.1);
+  --shadow-lg: 0 2px 6px rgba(17, 16, 20, 0.04), 0 24px 48px -12px rgba(17, 16, 20, 0.18);
+  --shadow-accent: 0 6px 20px -6px rgba(210, 73, 31, 0.5);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  --overlay: rgba(18, 17, 20, 0.32);
+  --scrollbar: rgba(20, 18, 16, 0.16);
+
+  --ambient-a: rgba(226, 98, 58, 0.16);
+  --ambient-b: rgba(201, 168, 106, 0.18);
+  --ambient-c: rgba(96, 120, 170, 0.08);
+  --ambient-dot: rgba(20, 18, 16, 0.07);
+
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2357544f' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+
+  /* ---------- 运营观测台（ops）配色：与主题同源 ---------- */
+  --ops-bg: #f4f3ef;
+  --ops-panel: #ffffff;
+  --ops-panel-2: #f6f5f1;
+  --ops-line: rgba(20, 18, 16, 0.09);
+  --ops-text: #26252a;
+  --ops-muted: #7c7871;
+  --ops-cyan: #138a8a;
+  --ops-blue: #3f6fd6;
+  --ops-green: #2f8a4f;
+  --ops-amber: #b7791f;
+  --ops-red: #cf3d36;
+  --ops-mono: var(--font-mono);
+  --ops-top-bg: rgba(255, 255, 255, 0.82);
+  --ops-input-bg: #ffffff;
+  --ops-on-bg: rgba(210, 73, 31, 0.08);
+  --ops-hover: rgba(20, 18, 16, 0.035);
+  --ops-title: #17161a;
+  --ops-val: #111014;
+  --ops-product: #57544f;
+  --ops-hover-border: rgba(20, 18, 16, 0.24);
+  --ops-track: #efeee9;
+  --ops-track-line: rgba(20, 18, 16, 0.1);
+  --ops-grid: rgba(20, 18, 16, 0.04);
+  --ops-gridline: rgba(20, 18, 16, 0.08);
+  --ops-empty: #8b8780;
+
+  /* ---------- 兼容别名（旧组件 scoped 样式仍可能引用） ---------- */
+  --sans: var(--font-sans);
+  --serif: var(--font-display);
+  --ink: var(--text);
+  --muted: var(--text-2);
+  --paper: var(--surface);
+  --paper-2: var(--surface-3);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --row-bg: var(--surface-2);
+  --navy: var(--info);
+  --radius: var(--r-lg);
+  --ease: var(--dur-2) var(--ease-out);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b0b0d;
+  --bg-sunken: #08080a;
+  --surface: #131316;
+  --surface-2: #17171b;
+  --surface-3: #1c1c21;
+  --surface-glass: rgba(22, 22, 26, 0.62);
+  --surface-glass-strong: rgba(22, 22, 26, 0.86);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-active: rgba(255, 255, 255, 0.07);
+
+  --border: rgba(255, 255, 255, 0.075);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --border-focus: rgba(240, 120, 80, 0.6);
+  --hairline-gold: linear-gradient(90deg, transparent, rgba(214, 180, 118, 0.45), transparent);
+
+  --text: #eeece8;
+  --text-2: #a7a39c;
+  --text-3: #6f6c67;
+  --text-inverse: #111014;
+
+  --accent: #ec6a40;
+  --accent-hover: #f2805a;
+  --accent-press: #d85a32;
+  --accent-soft: rgba(236, 106, 64, 0.12);
+  --accent-soft-2: rgba(236, 106, 64, 0.2);
+  --accent-ring: rgba(236, 106, 64, 0.3);
+  --accent-text: #f28a64;
+  --accent-grad: linear-gradient(135deg, #f37a4e 0%, #e45a30 55%, #c4441f 100%);
+
+  --gold: #d6b476;
+  --gold-soft: rgba(214, 180, 118, 0.12);
+
+  --ok: #4cc38a;
+  --ok-soft: rgba(76, 195, 138, 0.12);
+  --warn: #e3b453;
+  --warn-soft: rgba(227, 180, 83, 0.12);
+  --danger: #f2675e;
+  --danger-soft: rgba(242, 103, 94, 0.12);
+  --info: #6ea8f5;
+  --info-soft: rgba(110, 168, 245, 0.12);
+
+  --diff-del-bg: rgba(242, 103, 94, 0.13);
+  --diff-del-fg: #f6b1ab;
+  --diff-add-bg: rgba(76, 195, 138, 0.12);
+  --diff-add-fg: #a6e3c3;
+  --mark-hit: rgba(227, 180, 83, 0.3);
+  --mark-patch: rgba(236, 106, 64, 0.14);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -8px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.4), 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+  --shadow-accent: 0 8px 24px -8px rgba(236, 106, 64, 0.55);
+  --inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --overlay: rgba(0, 0, 0, 0.6);
+  --scrollbar: rgba(255, 255, 255, 0.14);
+
+  --ambient-a: rgba(236, 106, 64, 0.14);
+  --ambient-b: rgba(214, 180, 118, 0.08);
+  --ambient-c: rgba(90, 120, 200, 0.08);
+  --ambient-dot: rgba(255, 255, 255, 0.05);
+
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%23a7a39c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+
+  --ops-bg: #0b0b0d;
+  --ops-panel: #131316;
+  --ops-panel-2: #18181c;
+  --ops-line: rgba(255, 255, 255, 0.08);
+  --ops-text: #d6d3ce;
+  --ops-muted: #7d7a74;
+  --ops-cyan: #4fc1c1;
+  --ops-blue: #6ea8f5;
+  --ops-green: #4cc38a;
+  --ops-amber: #e3b453;
+  --ops-red: #f2675e;
+  --ops-top-bg: rgba(11, 11, 13, 0.78);
+  --ops-input-bg: #101013;
+  --ops-on-bg: rgba(236, 106, 64, 0.14);
+  --ops-hover: rgba(255, 255, 255, 0.04);
+  --ops-title: #eeece8;
+  --ops-val: #f6f4f0;
+  --ops-product: #a7a39c;
+  --ops-hover-border: rgba(255, 255, 255, 0.22);
+  --ops-track: #1b1b20;
+  --ops-track-line: rgba(255, 255, 255, 0.1);
+  --ops-grid: rgba(255, 255, 255, 0.03);
+  --ops-gridline: rgba(255, 255, 255, 0.08);
+  --ops-empty: #6f6c67;
+}

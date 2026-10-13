@@ -2,6 +2,7 @@
   <div class="ops-board ops-dense ops-fill" data-testid="obs-board">
     <header class="ops-top">
       <div class="ops-brand">
+        <img class="brand-logo ops-logo" src="/logo.png" alt="" />
         <div class="ops-brand-copy">
           <h1 class="ops-product">智云观测</h1>
           <p class="ops-product-note">{{ scopeNote }}</p>

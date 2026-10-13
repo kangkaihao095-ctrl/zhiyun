@@ -1,50 +1,62 @@
 <template>
-  <div>
+  <div class="history-page">
     <p class="page-kicker">记录</p>
     <h1 class="page-title">审校记录</h1>
     <p class="page-lead">这里是做过的检查。还可以继续处理还没确认的修改。可搜论文标题、检查方式和状态。</p>
 
-    <ListPager
-      v-model:q="q"
-      v-model:page="page"
-      v-model:size="size"
-      :total="total"
-      placeholder="论文标题、检查方式或状态"
-      @search="search"
-    />
+    <div class="history-tools panel">
+      <ListPager
+        v-model:q="q"
+        v-model:page="page"
+        v-model:size="size"
+        :total="total"
+        placeholder="论文标题、检查方式或状态"
+        @search="search"
+      />
 
-    <div class="filter-row">
-      <label class="zy-select-wrap">
-        <span class="pager-size-label">状态</span>
-        <select
-          class="zy-select zy-select-compact"
-          :value="filter"
-          aria-label="按状态筛选"
-          @change="setFilter($event.target.value)"
-        >
-          <option value="ALL">全部</option>
-          <option value="ACTIVE">进行中</option>
-          <option value="WAITING_ACCEPT">待确认</option>
-          <option value="DONE">已完成</option>
-          <option value="FAILED">未完成</option>
-        </select>
-      </label>
+      <div class="filter-row status-filter" role="group" aria-label="按状态筛选">
+        <label class="zy-select-wrap">
+          <span class="pager-size-label">状态</span>
+          <select
+            class="zy-select zy-select-compact"
+            :value="filter"
+            aria-label="按状态筛选"
+            @change="setFilter($event.target.value)"
+          >
+            <option value="ALL">全部</option>
+            <option value="ACTIVE">进行中</option>
+            <option value="WAITING_ACCEPT">待确认</option>
+            <option value="DONE">已完成</option>
+            <option value="FAILED">未完成</option>
+          </select>
+        </label>
+      </div>
     </div>
 
-    <div v-if="!rows.length" class="empty-block">还没有审校记录。从 <router-link class="text-link" to="/">我的论文</router-link> 上传并开始一次。</div>
-    <div class="history-list">
-      <article class="history-card" v-for="r in rows" :key="r.id">
-        <div class="history-top">
-          <strong>{{ r.manuscriptTitle }}</strong>
-          <span v-if="r.unread" class="unread-pill">未读</span>
-          <span class="status-pill" :data-s="r.status">{{ statusLabel(r.status) }}</span>
+    <div v-if="!loaded" class="skeleton-stack">
+      <span v-for="n in 3" :key="n" class="skeleton" style="height:116px;border-radius:16px" />
+    </div>
+    <div v-else-if="!rows.length" class="empty-block">还没有审校记录。从 <router-link class="text-link" to="/">我的论文</router-link> 上传并开始一次。</div>
+    <div class="history-list stagger">
+      <article class="history-card" v-for="r in rows" :key="r.id" :data-s="r.status">
+        <span class="history-ico" aria-hidden="true"><Icon :name="WORKFLOW_ICON[r.workflow] || 'layers'" /></span>
+        <div class="history-main">
+          <div class="history-top">
+            <strong>{{ r.manuscriptTitle }}</strong>
+            <span v-if="r.unread" class="unread-pill">未读</span>
+            <span class="status-pill" :data-s="r.status">{{ statusLabel(r.status) }}</span>
+          </div>
+          <p class="muted history-meta">
+            <span>{{ r.workflowName }}</span>
+            <span class="dot" aria-hidden="true" />
+            <span>{{ formatTime(r.createdAt) }}</span>
+          </p>
+          <p class="page-ids">
+            <CopyId label="任务 ID" :value="r.id" />
+          </p>
+          <p class="err" v-if="safeError(r)">{{ safeError(r) }}</p>
         </div>
-        <p class="muted">{{ r.workflowName }} · {{ formatTime(r.createdAt) }}</p>
-        <p class="page-ids">
-          <CopyId label="任务 ID" :value="r.id" />
-        </p>
-        <p class="err" v-if="safeError(r)">{{ safeError(r) }}</p>
-        <div class="row" style="margin-top:12px">
+        <div class="row history-actions">
           <router-link class="btn btn-accent" :to="'/reviews/' + r.id">查看结果</router-link>
           <button
             v-if="r.status === 'PENDING' || r.status === 'RUNNING'"
@@ -62,8 +74,8 @@
           >{{ retryingId === r.id ? '正在继续…' : '从检查点继续' }}</button>
           <router-link class="btn btn-ghost" :to="'/manuscripts/' + r.manuscriptId">打开论文</router-link>
         </div>
-        <p class="err" v-if="retryErrorId === r.id">{{ retryError }}</p>
-        <p class="err" v-if="cancelErrorId === r.id">{{ cancelError }}</p>
+        <p class="err history-err" v-if="retryErrorId === r.id">{{ retryError }}</p>
+        <p class="err history-err" v-if="cancelErrorId === r.id">{{ cancelError }}</p>
       </article>
     </div>
   </div>
@@ -78,6 +90,8 @@ import { publicErrorMessage } from '../public-error'
 import { toast } from '../toast'
 import ListPager from '../components/ListPager.vue'
 import CopyId from '../components/CopyId.vue'
+import Icon from '../components/Icon.vue'
+import { WORKFLOW_ICON } from '../agents'
 
 const router = useRouter()
 const refreshMe = inject('refreshMe', () => Promise.resolve())
@@ -87,6 +101,7 @@ const page = ref(1)
 const size = ref(DEFAULT_PAGE_SIZE)
 const total = ref(0)
 const filter = ref('ALL')
+const loaded = ref(false)
 const retryingId = ref(null)
 const retryErrorId = ref(null)
 const retryError = ref('')
@@ -122,16 +137,20 @@ function search() {
 }
 
 async function load() {
-  const data = asPage(await api('/reviews' + qs({
-    q: q.value,
-    page: page.value,
-    size: size.value,
-    status: filter.value === 'ALL' ? '' : filter.value
-  })))
-  rows.value = data.items
-  total.value = data.total
-  page.value = data.page
-  size.value = data.size
+  try {
+    const data = asPage(await api('/reviews' + qs({
+      q: q.value,
+      page: page.value,
+      size: size.value,
+      status: filter.value === 'ALL' ? '' : filter.value
+    })))
+    rows.value = data.items
+    total.value = data.total
+    page.value = data.page
+    size.value = data.size
+  } finally {
+    loaded.value = true
+  }
 }
 
 async function cancelReview(row) {

@@ -1,5 +1,5 @@
 <template>
-  <div class="login-shell" :class="{ busy }">
+  <div class="login-shell" :class="{ busy, 'is-ops': opsMode }">
     <section class="login-story">
       <div class="login-brand-row">
         <img class="brand-logo lg" src="/logo.png" alt="智云" />
@@ -8,8 +8,52 @@
           <p class="brand-sub">{{ opsMode ? '内部观测' : '论文审校' }}</p>
         </div>
       </div>
+
+      <p class="login-eyebrow">
+        <Icon name="sparkles" :size="14" />
+        {{ opsMode ? 'Harness 运行观测 · 时间窗聚合' : 'Multi-Agent 论文审校 SaaS' }}
+      </p>
+      <h2 v-if="!opsMode" class="login-headline">
+        让每一条引用、每一张图、<br />每一句话，<em>经得起审稿人追问。</em>
+      </h2>
+      <h2 v-else class="login-headline">
+        看清每一次审校<br /><em>在哪个 Agent 花了时间。</em>
+      </h2>
       <blockquote>上传论文，检查引用、图表和文字。</blockquote>
       <p class="muted">有修改会先给你看，确认后才写进正文。额度按实际用量扣。</p>
+
+      <div class="login-pipe">
+        <AgentPipeline mode="showcase" compact />
+      </div>
+
+      <ul v-if="!opsMode" class="login-points stagger">
+        <li>
+          <span class="login-point-ico"><Icon name="quote" /></span>
+          <span><strong>引用不靠模型口算</strong>Crossref 逐条核验 DOI，查无实据标记 NOT_VERIFIED</span>
+        </li>
+        <li>
+          <span class="login-point-ico"><Icon name="shield" /></span>
+          <span><strong>改稿只出候选稿</strong>逐处对照，你接受之后才写入正式稿</span>
+        </li>
+        <li>
+          <span class="login-point-ico"><Icon name="refresh" /></span>
+          <span><strong>长任务可恢复</strong>失败可从已完成节点续跑，同一任务只结算一次</span>
+        </li>
+      </ul>
+      <ul v-else class="login-points stagger">
+        <li>
+          <span class="login-point-ico"><Icon name="activity" /></span>
+          <span><strong>L1 总览</strong>窗口内创建、完成、积压与耗时分位</span>
+        </li>
+        <li>
+          <span class="login-point-ico"><Icon name="layers" /></span>
+          <span><strong>L2 单任务瀑布</strong>按 taskId + Agent 展开每个节点</span>
+        </li>
+        <li>
+          <span class="login-point-ico"><Icon name="cpu" /></span>
+          <span><strong>L3 领域指标</strong>LLM、引用核验、RAG 空召回、Harness</span>
+        </li>
+      </ul>
     </section>
     <section class="login-card">
       <form class="login-form" @submit.prevent="submit">
@@ -49,13 +93,30 @@
             注册
           </button>
         </div>
-        <input class="field" v-model="email" type="email" autocomplete="username" placeholder="邮箱" required />
-        <input class="field" v-model="password" type="password" autocomplete="current-password" placeholder="密码" required />
-        <input class="field" v-if="mode==='register' && !opsMode" v-model="displayName" placeholder="怎么称呼你" required />
-        <button class="btn btn-accent login-go" type="submit" :disabled="busy">
+        <label class="login-field">
+          <span>邮箱</span>
+          <input class="field" v-model="email" type="email" autocomplete="username" placeholder="name@lab.edu" required />
+        </label>
+        <label class="login-field">
+          <span>密码</span>
+          <input class="field" v-model="password" type="password" autocomplete="current-password" placeholder="至少 6 位" required />
+        </label>
+        <transition name="field-pop">
+          <label v-if="mode==='register' && !opsMode" class="login-field">
+            <span>称呼</span>
+            <input class="field" v-model="displayName" placeholder="怎么称呼你" required />
+          </label>
+        </transition>
+        <button class="btn btn-accent btn-lg login-go" type="submit" :disabled="busy">
+          <span v-if="busy" class="spinner" aria-hidden="true" />
           <span>{{ busy ? '正在进入…' : (opsMode ? '进入观测台' : (mode === 'login' ? '进入' : '注册并进入')) }}</span>
+          <Icon v-if="!busy" name="arrowRight" :size="16" />
         </button>
         <p class="err" v-if="error">{{ error }}</p>
+        <p v-if="mode === 'login'" class="login-demo">
+          <Icon name="key" :size="13" />
+          演示账号 demo@zhiyun.dev 已预填，可直接进入
+        </p>
       </form>
     </section>
     <router-link
@@ -77,6 +138,8 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
+import Icon from '../components/Icon.vue'
+import AgentPipeline from '../components/AgentPipeline.vue'
 
 const route = useRoute()
 const router = useRouter()

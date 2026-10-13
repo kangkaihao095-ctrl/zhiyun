@@ -1,119 +1,164 @@
 <template>
-  <div v-if="detail.manuscript">
-    <p class="page-kicker">论文</p>
-    <h1 class="page-title">{{ detail.manuscript.title }}</h1>
-    <p class="page-lead">
-      当前正式稿是第 {{ detail.manuscript.currentVersion }} 版。可以先预览正文，再选择检查范围。修改建议不会直接覆盖正式稿。
-    </p>
-    <p class="page-ids">
-      <CopyId label="稿件 ID" :value="detail.manuscript.id" />
-      <CopyId v-if="preview.versionNo" label="版本号" :value="preview.versionNo" />
-    </p>
+  <div v-if="detail.manuscript" class="ms-page">
+    <header class="ms-head">
+      <p class="page-kicker">论文</p>
+      <h1 class="page-title">{{ detail.manuscript.title }}</h1>
+      <p class="page-lead">
+        当前正式稿是第 {{ detail.manuscript.currentVersion }} 版。可以先预览正文，再选择检查范围。修改建议不会直接覆盖正式稿。
+      </p>
+      <p class="page-ids">
+        <span class="ms-format" v-if="preview.format">{{ preview.format }}</span>
+        <CopyId label="稿件 ID" :value="detail.manuscript.id" />
+        <CopyId v-if="preview.versionNo" label="版本号" :value="preview.versionNo" />
+      </p>
+    </header>
 
-    <div class="panel">
-      <p class="panel-label">打开 / 预览</p>
-      <div class="ver-toolbar">
-        <h3>{{ previewHeading }}</h3>
-        <div class="row">
-          <button
-            v-if="preview.hasFile"
-            class="btn btn-accent"
-            type="button"
-            @click="openFile(false)"
-          >打开原件</button>
-          <button
-            v-if="preview.hasFile"
-            class="btn btn-ghost"
-            type="button"
-            @click="openFile(true)"
-          >下载</button>
-        </div>
-      </div>
-      <PdfInspectPanel v-if="inspect.pagePreview" :inspect="inspect" @open="openFile(false)" />
-      <p class="muted" v-if="preview.format === 'PDF'">
-        下面是抽出的文本。页规格和图表见上方对照面；点「打开原件」看 PDF 本身。
-      </p>
-      <p class="muted" v-else-if="preview.format === 'DOCX'">
-        这是 Word 抽出的文本。也可以下载原件。Word 没有 PDF 页预览。
-      </p>
-      <p class="muted" v-else-if="preview.format === 'MD'">
-        这是 Markdown 抽出的正文。不是 PDF，不展示页规格。
-      </p>
-      <div v-if="preview.contentText" class="ms-body ms-preview" v-html="renderBody(preview.contentText)" />
-      <div v-else class="empty-block">这篇还没有抽出正文。若已上传原件，可点「打开原件」。 </div>
-    </div>
-
-    <div class="panel">
-      <p class="panel-label">检查范围</p>
-      <h3>这次要检查什么</h3>
-      <div class="wf-grid">
-        <button
-          v-for="w in workflows"
-          :key="w.id"
-          class="wf-card"
-          :class="{ on: workflow === w.id }"
-          type="button"
-          @click="workflow = w.id"
-        >
-          <div class="wf-show-top">
-            <strong>{{ w.name }}</strong>
-            <span class="wf-cap" :class="{ on: workflow === w.id }">最多 {{ w.capPoints }} 额度</span>
+    <div class="ms-layout">
+      <div class="ms-main">
+        <div class="panel ms-reader">
+          <p class="panel-label">打开 / 预览</p>
+          <div class="ver-toolbar">
+            <h3>{{ previewHeading }}</h3>
+            <div class="row">
+              <button
+                v-if="preview.hasFile"
+                class="btn btn-ghost"
+                type="button"
+                @click="openFile(false)"
+              ><Icon name="external" :size="15" />打开原件</button>
+              <button
+                v-if="preview.hasFile"
+                class="btn btn-ghost"
+                type="button"
+                @click="openFile(true)"
+              ><Icon name="download" :size="15" />下载</button>
+            </div>
           </div>
-          <span>{{ w.summary }}</span>
-        </button>
-      </div>
+          <PdfInspectPanel v-if="inspect.pagePreview" :inspect="inspect" @open="openFile(false)" />
+          <p class="muted ms-format-note" v-if="preview.format === 'PDF'">
+            下面是抽出的文本。页规格和图表见上方对照面；点「打开原件」看 PDF 本身。
+          </p>
+          <p class="muted ms-format-note" v-else-if="preview.format === 'DOCX'">
+            这是 Word 抽出的文本。也可以下载原件。Word 没有 PDF 页预览。
+          </p>
+          <p class="muted ms-format-note" v-else-if="preview.format === 'MD'">
+            这是 Markdown 抽出的正文。不是 PDF，不展示页规格。
+          </p>
+          <div v-if="preview.contentText" class="ms-body ms-preview" v-html="renderBody(preview.contentText)" />
+          <div v-else class="empty-block">这篇还没有抽出正文。若已上传原件，可点「打开原件」。 </div>
+        </div>
 
-      <div v-if="selected" class="wf-detail">
-        <p class="wf-sum">{{ selected.useWhen }}</p>
-        <div class="pipe" aria-label="审校步骤">
-          <template v-for="(a, i) in selected.agents" :key="selected.id + a">
-            <span class="pipe-node">{{ a }}</span>
-            <span v-if="i < selected.agents.length - 1" class="pipe-join">→</span>
-          </template>
+        <div class="panel ms-versions">
+          <p class="panel-label">版本</p>
+          <h3>版本</h3>
+          <p class="muted">点某一版即可预览全文。正式稿是主干，候选稿是尚未接受的修改。</p>
+          <div class="ver-list">
+            <button
+              v-for="v in detail.versions"
+              :key="v.id"
+              class="ver-row"
+              :class="{ on: preview.versionNo === v.versionNo }"
+              type="button"
+              @click="selectVersion(v)"
+            >
+              <span class="ver-dot" :data-s="v.status" aria-hidden="true" />
+              <span class="ver-no">第 {{ v.versionNo }} 版</span>
+              <span class="ver-tag" :data-s="v.status">{{ versionStatusLabel(v.status) }}</span>
+              <span v-if="v.current" class="ver-now">正在看的主干</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <label class="panel-label" style="margin-top:16px;display:block">投稿期刊（可选）</label>
-      <input
-        class="field"
-        v-model="venueQ"
-        type="search"
-        placeholder="搜索 IEEE / ACL / Nature / ICML…"
-        aria-label="搜索投稿期刊"
-      />
-      <label class="zy-select-wrap block" style="margin-top:8px">
-        <select class="field zy-select" v-model="targetVenue" aria-label="投稿期刊">
-          <option value="">未指定（从正文抽刊名）</option>
-          <option v-for="v in filteredVenues" :key="v.id" :value="v.id">{{ v.name }} · {{ v.family }}</option>
-        </select>
-      </label>
-      <p class="muted" style="margin-top:8px">
-        {{ venueHint }}
-      </p>
+      <aside class="ms-aside">
+        <div class="panel launch-panel">
+          <p class="panel-label">检查范围</p>
+          <h3>这次要检查什么</h3>
+          <div class="wf-grid" role="radiogroup" aria-label="检查范围">
+            <button
+              v-for="w in workflows"
+              :key="w.id"
+              class="wf-card"
+              :class="{ on: workflow === w.id }"
+              type="button"
+              role="radio"
+              :aria-checked="workflow === w.id"
+              @click="workflow = w.id"
+            >
+              <span class="wf-ico"><Icon :name="WORKFLOW_ICON[w.id] || 'layers'" :size="17" /></span>
+              <span class="wf-body">
+                <span class="wf-show-top">
+                  <strong>{{ w.name }}</strong>
+                  <span class="wf-cap" :class="{ on: workflow === w.id }">最多 {{ w.capPoints }} 额度</span>
+                </span>
+                <span class="wf-desc">{{ w.summary }}</span>
+              </span>
+              <span class="wf-radio" aria-hidden="true" />
+            </button>
+          </div>
 
-      <div class="row" style="margin-top:16px">
-        <button class="btn btn-accent" type="button" :disabled="starting" @click="start">
-          {{ starting ? '正在开始…' : ('开始「' + (selected?.name || '审校') + '」') }}
-        </button>
-        <router-link class="btn btn-ghost" to="/history">以前的审校</router-link>
-      </div>
-      <p class="err" v-if="error">{{ error }}</p>
+          <div v-if="selected" class="wf-detail">
+            <div class="wf-detail-head">
+              <span>{{ selected.agents.length }} 个 Agent 参与</span>
+              <em>{{ selected.useWhen }}</em>
+            </div>
+            <AgentPipeline mode="select" compact :active="selected.agents" label="审校步骤" />
+          </div>
+
+          <div class="venue-block">
+            <label class="panel-label" for="venue-q">投稿期刊（可选）</label>
+            <input
+              id="venue-q"
+              class="field"
+              v-model="venueQ"
+              type="search"
+              placeholder="搜索 IEEE / ACL / Nature / ICML…"
+              aria-label="搜索投稿期刊"
+            />
+            <label class="zy-select-wrap block">
+              <select class="field zy-select" v-model="targetVenue" aria-label="投稿期刊">
+                <option value="">未指定（从正文抽刊名）</option>
+                <option v-for="v in filteredVenues" :key="v.id" :value="v.id">{{ v.name }} · {{ v.family }}</option>
+              </select>
+            </label>
+            <p class="venue-hint">
+              <Icon name="book" :size="13" />
+              <span>{{ venueHint }}</span>
+            </p>
+          </div>
+
+          <button class="btn btn-accent btn-lg btn-block launch-go" type="button" :disabled="starting" @click="start">
+            <span v-if="starting" class="spinner" aria-hidden="true" />
+            <Icon v-else name="sparkles" :size="16" />
+            {{ starting ? '正在开始…' : ('开始「' + (selected?.name || '审校') + '」') }}
+          </button>
+          <p class="launch-note">
+            <Icon name="shield" :size="13" />
+            按实际 token 结算，不超过上限；改稿只生成候选稿
+          </p>
+          <router-link class="btn btn-ghost btn-block" to="/history"><Icon name="history" :size="15" />以前的审校</router-link>
+          <p class="err" v-if="error">{{ error }}</p>
+        </div>
+      </aside>
     </div>
-    <div class="panel">
-      <h3>版本</h3>
-      <p class="muted">点某一版即可预览全文。正式稿是主干，候选稿是尚未接受的修改。</p>
-      <button
-        v-for="v in detail.versions"
-        :key="v.id"
-        class="ver-row"
-        :class="{ on: preview.versionNo === v.versionNo }"
-        type="button"
-        @click="selectVersion(v)"
-      >
-        <span>第 {{ v.versionNo }} 版</span>
-        <span class="ver-tag" :data-s="v.status">{{ versionStatusLabel(v.status) }}</span>
-        <span v-if="v.current" class="ver-now">正在看的主干</span>
-      </button>
+  </div>
+  <div v-else-if="loadError" class="ms-page">
+    <p class="page-kicker">论文</p>
+    <h1 class="page-title">打不开这篇论文</h1>
+    <p class="err">{{ loadError }}</p>
+    <div class="row" style="margin-top:16px">
+      <router-link class="btn btn-ghost" to="/"><Icon name="arrowLeft" :size="15" />回到论文列表</router-link>
+    </div>
+  </div>
+  <div v-else class="ms-page" aria-busy="true">
+    <div class="skeleton-stack">
+      <span class="skeleton" style="height:14px;width:80px" />
+      <span class="skeleton" style="height:40px;width:55%" />
+      <span class="skeleton" style="height:16px;width:70%" />
+    </div>
+    <div class="ms-layout" style="margin-top:32px">
+      <div class="ms-main"><span class="skeleton" style="height:420px;border-radius:16px" /></div>
+      <aside class="ms-aside"><span class="skeleton" style="height:420px;border-radius:16px" /></aside>
     </div>
   </div>
 </template>
@@ -126,6 +171,9 @@ import { toast } from '../toast'
 import { versionStatusLabel } from '../labels'
 import PdfInspectPanel from '../components/PdfInspectPanel.vue'
 import CopyId from '../components/CopyId.vue'
+import Icon from '../components/Icon.vue'
+import AgentPipeline from '../components/AgentPipeline.vue'
+import { WORKFLOW_ICON } from '../agents'
 
 const fallback = [
   { id: 'CITATION_ONLY', name: '引用核验', summary: '核对参考文献和 DOI 是否真实，不改正文。', agents: ['引用核验'], capPoints: 3, useWhen: '交稿前先查一遍文献。' },
@@ -139,6 +187,7 @@ const detail = ref({})
 const workflows = ref(fallback)
 const workflow = ref('CITATION_ONLY')
 const error = ref('')
+const loadError = ref('')
 const starting = ref(false)
 const venues = ref([])
 const venueQ = ref('')
@@ -172,7 +221,12 @@ const previewHeading = computed(() => {
 })
 
 onMounted(async () => {
-  detail.value = await api('/manuscripts/' + route.params.id)
+  try {
+    detail.value = await api('/manuscripts/' + route.params.id)
+  } catch (e) {
+    loadError.value = e.message || '找不到这篇论文'
+    return
+  }
   pickCurrent()
   try {
     const data = await api('/workflows')

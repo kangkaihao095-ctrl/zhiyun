@@ -191,47 +191,46 @@ async function remove(row) {
 
 <style scoped>
 .knowledge-ops { margin-top: 4px; }
-.knowledge-actions { margin: 0 0 18px; }
-.knowledge-groups { margin-bottom: 18px; }
+.knowledge-actions { margin: 0 0 var(--s-5); }
+.knowledge-groups { margin-bottom: var(--s-5); }
 .knowledge-card {
   cursor: default;
-  min-height: 132px;
+  min-height: 140px;
 }
 .knowledge-card h3 {
-  font-size: 16px;
-  line-height: 1.45;
+  font-size: var(--fs-15);
+  line-height: 1.5;
   font-weight: 600;
 }
 .knowledge-catalog-head {
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--s-3);
 }
 .knowledge-dir {
   max-height: min(420px, 58vh);
-  gap: 4px;
+  gap: 2px;
 }
 .knowledge-file {
   display: block;
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
   margin-top: 2px;
+  color: var(--text-3);
 }
-.zy-select-option.on .knowledge-file {
-  color: rgba(255, 252, 247, 0.72);
-}
+.zy-select-option.on .knowledge-file { color: var(--accent-text); opacity: 0.8; }
 .knowledge-preview {
-  margin-top: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: rgba(255, 252, 247, 0.55);
+  margin-top: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  animation: zy-fade-up var(--dur-3) var(--ease-out);
 }
 .knowledge-preview h3 { margin: 0 0 8px; }
 .knowledge-preview .text-link {
   margin-top: 10px;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font: inherit;
+  color: var(--danger);
 }
-.knowledge-preview-hint { margin: 12px 0 0; }
+.knowledge-preview-hint { margin: var(--s-3) 0 0; font-size: var(--fs-12); }
 </style>

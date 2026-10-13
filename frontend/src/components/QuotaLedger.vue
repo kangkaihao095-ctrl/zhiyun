@@ -11,8 +11,14 @@
       placeholder="原因、任务号、订单号或额度"
       @search="search"
     />
-    <div v-if="!rows.length" class="empty-block">还没有账变。充值或完成一次审校后会出现。</div>
+    <div v-if="!loaded" class="skeleton-stack">
+      <span v-for="n in 3" :key="n" class="skeleton" style="height:64px" />
+    </div>
+    <div v-else-if="!rows.length" class="empty-block">还没有账变。充值或完成一次审校后会出现。</div>
     <div v-for="row in rows" :key="row.id" class="ledger-row">
+      <span class="ledger-ico" :class="row.delta > 0 ? 'plus' : 'minus'" aria-hidden="true">
+        <Icon :name="row.delta > 0 ? 'plus' : 'review'" :size="16" />
+      </span>
       <div class="ledger-main">
         <p class="ledger-reason">{{ row.reasonLabel }}</p>
         <p class="page-ids ledger-ids">
@@ -43,12 +49,14 @@ import { formatTime, ledgerReason, ledgerRelated, ledgerIds } from '../labels'
 import { toast } from '../toast'
 import ListPager from './ListPager.vue'
 import CopyId from './CopyId.vue'
+import Icon from './Icon.vue'
 
 const props = defineProps({
   refreshToken: { type: Number, default: 0 }
 })
 
 const ledger = ref([])
+const loaded = ref(false)
 const q = ref('')
 const page = ref(1)
 const size = ref(DEFAULT_PAGE_SIZE)
@@ -63,6 +71,8 @@ async function load() {
     size.value = data.size
   } catch (e) {
     toast(e.message || '流水加载失败', 'err')
+  } finally {
+    loaded.value = true
   }
 }
 

@@ -1,17 +1,26 @@
 <template>
   <div class="task-page">
-    <p class="page-kicker">审校结果</p>
-    <h1 class="page-title">{{ title }}</h1>
-    <p class="page-lead">
-      <span class="status-pill" :data-s="task.status">{{ statusLabel(task.status) }}</span>
-      {{ workflowName }}<template v-if="task.targetVenue"> · 投稿 {{ task.targetVenue }}</template> · {{ formatTime(task.createdAt) }}
-    </p>
-    <div class="tr-usage-sum" data-testid="task-usage-summary">
-      <span>{{ usageCols.duration }}</span>
-      <span>{{ usageCols.tokens }}</span>
-      <span>{{ usageCols.quota }}</span>
-      <em v-if="usageCols.inProgress">进行中</em>
-    </div>
+    <header class="task-hero">
+      <div class="task-hero-main">
+        <p class="page-kicker">审校结果</p>
+        <h1 class="page-title" :title="title">{{ workflowName }}</h1>
+        <p class="page-lead task-meta">
+          <span class="status-pill" :data-s="task.status">{{ statusLabel(task.status) }}</span>
+          <code v-if="task.id" class="task-id">{{ task.id }}</code>
+          <span class="task-meta-text"><template v-if="task.targetVenue">投稿 {{ task.targetVenue }} · </template>{{ formatTime(task.createdAt) }}</span>
+        </p>
+      </div>
+      <div class="tr-usage-sum" data-testid="task-usage-summary">
+        <span><Icon name="clock" :size="15" />{{ usageCols.duration }}</span>
+        <span><Icon name="cpu" :size="15" />{{ usageCols.tokens }}</span>
+        <span><Icon name="coins" :size="15" />{{ usageCols.quota }}</span>
+        <em v-if="usageCols.inProgress">进行中</em>
+      </div>
+    </header>
+
+    <section v-if="heroNodes.length" class="task-flow" :data-s="task.status">
+      <AgentPipeline mode="live" compact :live="heroNodes" label="本次审校进度" />
+    </section>
 
     <nav class="tr-tabs" role="tablist" aria-label="审校结果分类">
       <button
@@ -25,6 +34,7 @@
         :data-testid="'task-tab-' + p.key"
         @click="setPanel(p.key)"
       >
+        <Icon :name="TAB_ICON[p.key] || 'papers'" :size="15" />
         {{ p.label }}
         <span class="tr-tab-n">{{ panelCounts[p.key] }}</span>
         <em v-if="p.key === 'confirm' && task.status === 'WAITING_ACCEPT'">待确认</em>
@@ -224,7 +234,7 @@
               <PriorityWhy
                 v-if="item.high"
                 :why-high="item.whyHigh"
-                :suggest-fix="item.suggestFix"
+                :suggest-fix="shownFix(item.instruction, item.suggestFix)"
                 :evidence="item.evidenceView"
               />
               <PatchDiff
@@ -254,7 +264,7 @@
           <PriorityWhy
             v-if="item.high"
             :why-high="item.whyHigh"
-            :suggest-fix="item.suggestFix"
+            :suggest-fix="shownFix(item.summary, item.suggestFix)"
             :evidence="item.evidenceView"
           />
           <PatchDiff
@@ -336,7 +346,7 @@
                   <PriorityWhy
                     v-if="item.high"
                     :why-high="item.whyHigh"
-                    :suggest-fix="item.suggestFix"
+                    :suggest-fix="shownFix(item.summary, item.suggestFix)"
                     :evidence="item.evidenceView"
                   />
                   <p v-else class="finding-action">{{ item.action }}</p>
@@ -457,9 +467,8 @@
       </div>
     </section>
 
-    <p class="muted" style="margin-top:8px">
+    <p class="muted task-links">
       <router-link class="text-link" to="/history">返回审校记录</router-link>
-      ·
       <router-link v-if="task.manuscriptId" class="text-link" :to="'/manuscripts/' + task.manuscriptId">打开论文</router-link>
     </p>
 
@@ -532,6 +541,16 @@ import PdfInspectPanel from '../components/PdfInspectPanel.vue'
 import CopyId from '../components/CopyId.vue'
 import PriorityWhy from '../components/PriorityWhy.vue'
 import PageBar from '../components/PageBar.vue'
+import Icon from '../components/Icon.vue'
+import AgentPipeline from '../components/AgentPipeline.vue'
+
+const TAB_ICON = {
+  overview: 'activity',
+  confirm: 'shield',
+  issues: 'search',
+  revise: 'wand',
+  manuscript: 'papers'
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -597,6 +616,7 @@ const pipeNodes = computed(() => pipelineNodes(
   task.value.errorMessage
 ))
 const showPipe = computed(() => showCheckpointPipeline(task.value.status) && pipeNodes.value.length > 0)
+const heroNodes = computed(() => pipelineNodes(task.value.workflow, task.value.checkpointAgent, task.value.status, ''))
 const userUsage = computed(() => toUserUsage(usage.value))
 const usageCols = computed(() => usageSummaryCols(userUsage.value))
 const usageSplit = computed(() => splitUsageNodes(userUsage.value))
@@ -1135,6 +1155,14 @@ function patchCatLabel(p) {
 
 function patchOf(item) {
   return relatedPatch(item, displayPatches.value)
+}
+
+function shownFix(shown, fix) {
+  const norm = (value) => String(value || '').replace(/\s+/g, ' ').trim()
+  const visible = norm(shown)
+  const suggestion = norm(fix)
+  if (!suggestion || (visible && visible === suggestion)) return ''
+  return fix
 }
 
 function beginPartial() {

@@ -7,21 +7,27 @@
         账户和模型分项打开。云笺和检索由平台提供，不能更换。充值请点右上角，流水在
         <router-link class="text-link" to="/billing">订单</router-link>。
       </p>
-      <div class="settings-hub">
+      <div class="settings-hub stagger">
         <button type="button" class="settings-card" @click="openPanel('profile')">
+          <span class="settings-ico"><Icon name="user" /></span>
           <p class="panel-label">账户</p>
           <h3>账户资料</h3>
           <p class="muted">显示名、头像和实验室信息。改名需确认。</p>
+          <span class="settings-go"><Icon name="arrowRight" :size="16" /></span>
         </button>
         <button type="button" class="settings-card" @click="openPanel('models')">
+          <span class="settings-ico"><Icon name="cpu" /></span>
           <p class="panel-label">模型</p>
           <h3>模型配置</h3>
           <p class="muted">论文 7 Agent 可覆盖平台默认。云笺和检索不可更换。</p>
+          <span class="settings-go"><Icon name="arrowRight" :size="16" /></span>
         </button>
         <button type="button" class="settings-card" @click="goOrders">
+          <span class="settings-ico"><Icon name="orders" /></span>
           <p class="panel-label">订单</p>
           <h3>额度流水</h3>
           <p class="muted">打开订单页看额度进出。充值请点右上角。</p>
+          <span class="settings-go"><Icon name="arrowRight" :size="16" /></span>
         </button>
         <button
           v-if="me.operator"
@@ -29,9 +35,11 @@
           class="settings-card"
           @click="openPanel('knowledge')"
         >
+          <span class="settings-ico gold"><Icon name="database" /></span>
           <p class="panel-label">运营</p>
           <h3>公共知识运营</h3>
           <p class="muted">查看公共知识精华、上传规范并重建索引。仅运营可见。</p>
+          <span class="settings-go"><Icon name="arrowRight" :size="16" /></span>
         </button>
       </div>
     </template>
@@ -117,6 +125,7 @@ import { formatTime } from '../labels'
 import { toast } from '../toast'
 import Models from './Models.vue'
 import Knowledge from './Knowledge.vue'
+import Icon from '../components/Icon.vue'
 
 const PANELS = {
   profile: {

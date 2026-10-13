@@ -38,12 +38,15 @@
       <p class="muted">{{ catalog.skillFee?.note || '自备模型时 token 走你自己的云账单，平台只收技能与提示词服务费。' }}</p>
     </section>
 
-    <section class="panel model-card" v-for="agent in agents" :key="agent.id">
+    <p class="models-section-label">论文 Agent</p>
+    <section class="panel model-card" :class="{ open: openId === agent.id }" v-for="agent in agents" :key="agent.id">
       <button type="button" class="model-card-head" @click="toggle(agent)">
+        <span class="model-ico"><Icon :name="agentIcon(agent.id)" /></span>
         <div class="model-card-meta">
           <p class="panel-label">{{ agent.name }}</p>
           <h3>{{ agent.summary }}</h3>
         </div>
+        <span class="model-mode" :class="{ byok: agent.mode === 'BYOK' }">{{ agent.mode === 'BYOK' ? '自备 Key' : '平台默认' }}</span>
         <span class="model-card-toggle">{{ openId === agent.id ? '收起' : '配置' }}</span>
       </button>
       <div class="model-body" v-if="openId === agent.id">
@@ -89,6 +92,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
 import { toast } from '../toast'
+import { agentIcon } from '../agents'
+import Icon from '../components/Icon.vue'
 
 const FALLBACK_AGENTS = [
   { id: 'CITATION_INTEGRITY', name: '引用核验', summary: '核对参考文献与 DOI。', mode: 'PLATFORM' },
